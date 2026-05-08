@@ -16,6 +16,7 @@ export function LoginPage() {
 
   const handleLogin = async () => {
     try {
+      console.log(import.meta.env.VITE_AZURE_TENANT_ID);
       await instance.loginPopup(loginRequest);
       navigate("/");
     } catch (e) {
