@@ -1,0 +1,355 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --color-primario: #1987af;
+  --color-secundario: #ffbe1e;
+  --color-primario-dark: #0f5f80;
+  --color-primario-light: #e8f4f9;
+  --color-texto: #1e293b;
+  --color-texto-suave: #64748b;
+  --color-borde: #e2e8f0;
+  --color-fondo: #f8fafc;
+  --sidebar-width: 220px;
+  --header-height: 64px;
+  --radio-base: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── Layout ── */
+.layout-root {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-primario-dark);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-logo .logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.sidebar-logo .logo-text span {
+  color: var(--color-secundario);
+}
+
+.sidebar-logo .logo-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  transition: all 0.18s;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: rgba(255,190,30,0.12);
+  color: var(--color-secundario);
+  border-left-color: var(--color-secundario);
+}
+
+.sidebar-user {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-user .user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user .user-rol {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 2px;
+}
+
+.sidebar-user .btn-logout {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+.sidebar-user .btn-logout:hover {
+  color: var(--color-secundario);
+}
+
+.main-content {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  padding: 32px 36px;
+  min-height: 100vh;
+}
+
+/* ── Page header ── */
+.page-header {
+  margin-bottom: 28px;
+}
+
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-texto);
+}
+
+.page-header p {
+  font-size: 13.5px;
+  color: var(--color-texto-suave);
+  margin-top: 4px;
+}
+
+/* ── Cards ── */
+.card {
+  background: #fff;
+  border-radius: var(--radio-base);
+  border: 1px solid var(--color-borde);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-texto);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-secundario);
+  display: inline-block;
+}
+
+/* ── Stat cards ── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-base);
+  padding: 20px;
+  border-top: 3px solid var(--color-primario);
+}
+
+.stat-card .stat-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-primario);
+}
+
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--color-texto-suave);
+  margin-top: 4px;
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  background: var(--color-primario);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary:hover {
+  background: var(--color-primario-dark);
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--color-primario);
+  border: 1.5px solid var(--color-primario);
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-secondary:hover {
+  background: var(--color-primario-light);
+}
+
+/* ── Notificación flotante ── */
+.notif-float {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: #fff;
+  border: 1px solid var(--color-borde);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1000;
+  min-width: 280px;
+  animation: slideUp 0.3s ease;
+}
+
+.notif-float.success { border-left: 4px solid #10b981; }
+.notif-float.error   { border-left: 4px solid #ef4444; }
+.notif-float.info    { border-left: 4px solid var(--color-primario); }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Badge estado ── */
+.badge-estado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-completado { background: #d1fae5; color: #065f46; }
+.badge-procesando { background: #dbeafe; color: #1e40af; }
+.badge-pendiente  { background: #fef9c3; color: #92400e; }
+.badge-error      { background: #fee2e2; color: #991b1b; }
+
+/* ── Login page ── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primario-dark) 0%, var(--color-primario) 100%);
+}
+
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 48px 44px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.login-logo {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-primario);
+  margin-bottom: 8px;
+}
+
+.login-logo span { color: var(--color-secundario); }
+
+.login-subtitle {
+  font-size: 13px;
+  color: var(--color-texto-suave);
+  margin-bottom: 32px;
+}
+
+/* ── Ant Design token overrides via CSS vars ── */
+.ant-btn-primary {
+  background: var(--color-primario) !important;
+  border-color: var(--color-primario) !important;
+}
+
+.ant-btn-primary:hover {
+  background: var(--color-primario-dark) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--color-primario-light) !important;
+  color: var(--color-primario) !important;
+  font-weight: 600 !important;
+}
+
+.ant-steps-item-finish .ant-steps-item-icon {
+  background: var(--color-primario) !important;
+  border-color: var(--color-primario) !important;
+}
+
+.ant-steps-item-process .ant-steps-item-icon {
+  background: var(--color-secundario) !important;
+  border-color: var(--color-secundario) !important;
+}
