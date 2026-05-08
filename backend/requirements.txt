@@ -13,6 +13,7 @@ azure-mgmt-monitor==6.0.2
 azure-mgmt-resource==23.0.1
 azure-storage-blob==12.20.0
 weasyprint==62.3
+pydyf==0.11.0
 matplotlib==3.9.0
 pandas==2.2.2
 msal==1.28.0
