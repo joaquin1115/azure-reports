@@ -82,12 +82,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create .env.production
+        run: |
+          echo "VITE_AZURE_CLIENT_ID=${{ secrets.VITE_AZURE_CLIENT_ID }}" > .env.production
+          echo "VITE_AZURE_TENANT_ID=${{ secrets.VITE_AZURE_TENANT_ID }}" >> .env.production
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env.production
+
       - name: Build
         run: npm run build
-        env:
-          VITE_AZURE_CLIENT_ID: ${{ secrets.VITE_AZURE_CLIENT_ID }}
-          VITE_AZURE_TENANT_ID: ${{ secrets.VITE_AZURE_TENANT_ID }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       - name: Deploy to Azure Static Web Apps
         if: github.ref == 'refs/heads/main'
