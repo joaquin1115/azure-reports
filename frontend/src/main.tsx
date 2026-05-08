@@ -28,25 +28,58 @@ const antdTheme = {
   },
 };
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <MsalProvider instance={msalInstance}>
-      <ConfigProvider locale={esES} theme={antdTheme}>
-        <BrowserRouter>
-          <NotificacionFlotante />
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Navigate to="/generar" replace />} />
-              <Route path="generar" element={<GenerarReportePage />} />
-              <Route path="historial" element={<HistorialPage />} />
-              <Route path="programar" element={<ProgramarReportePage />} />
-              <Route path="usuarios" element={<UsuariosPage />} />
-              <Route path="clientes" element={<ClientesPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </ConfigProvider>
-    </MsalProvider>
-  </React.StrictMode>
-);
+async function bootstrap() {
+  await msalInstance.initialize();
+
+  await msalInstance.handleRedirectPromise();
+
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <MsalProvider instance={msalInstance}>
+        <ConfigProvider locale={esES} theme={antdTheme}>
+          <BrowserRouter>
+            <NotificacionFlotante />
+
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+
+              <Route path="/" element={<AppLayout />}>
+                <Route
+                  index
+                  element={<Navigate to="/generar" replace />}
+                />
+
+                <Route
+                  path="generar"
+                  element={<GenerarReportePage />}
+                />
+
+                <Route
+                  path="historial"
+                  element={<HistorialPage />}
+                />
+
+                <Route
+                  path="programar"
+                  element={<ProgramarReportePage />}
+                />
+
+                <Route
+                  path="usuarios"
+                  element={<UsuariosPage />}
+                />
+
+                <Route
+                  path="clientes"
+                  element={<ClientesPage />}
+                />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ConfigProvider>
+      </MsalProvider>
+    </React.StrictMode>
+  );
+}
+
+bootstrap();
