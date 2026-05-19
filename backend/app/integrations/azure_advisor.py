@@ -12,9 +12,9 @@ GRAVEDAD_MAP = {
 async def obtener_recomendaciones(
     subscription_id: str,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
     gravedad: GravedadEnum,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> list[dict]:
     token = await _get_access_token(tenant_id, client_id, client_secret)
     niveles = GRAVEDAD_MAP[gravedad]

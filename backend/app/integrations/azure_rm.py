@@ -1,5 +1,5 @@
 import httpx
-from azure.identity.aio import ClientSecretCredential
+from azure.identity.aio import ClientSecretCredential, DefaultAzureCredential
 from app.config import get_settings
 from app.schemas.schemas import RecursoAzure
 from app.models.models import TipoRecursoEnum
@@ -20,11 +20,22 @@ METRICS_BY_TYPE = {
 }
 
 
-async def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str:
+async def _get_access_token(tenant_id: str | None = None, client_id: str | None = None, client_secret: str | None = None) -> str:
+    if settings.use_managed_identity:
+        credential = DefaultAzureCredential(
+            managed_identity_client_id=settings.managed_identity_client_id or None
+        )
+        token = await credential.get_token("https://management.azure.com/.default")
+        await credential.close()
+        return token.token
+
+    resolved_tenant = tenant_id or settings.azure_tenant_id
+    resolved_client = client_id or settings.azure_client_id
+    resolved_secret = client_secret or settings.azure_client_secret
     credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
+        tenant_id=resolved_tenant,
+        client_id=resolved_client,
+        client_secret=resolved_secret,
     )
     token = await credential.get_token("https://management.azure.com/.default")
     await credential.close()
@@ -34,8 +45,8 @@ async def _get_access_token(tenant_id: str, client_id: str, client_secret: str) 
 async def obtener_recursos_por_tenant(
     tenant_id: str,
     subscription_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> list[RecursoAzure]:
     """Fetches all supported resources from a subscription."""
     token = await _get_access_token(tenant_id, client_id, client_secret)
@@ -69,10 +80,10 @@ async def obtener_metricas_recurso(
     resource_id: str,
     tipo: TipoRecursoEnum,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
     periodo_mes: int,
     periodo_anio: int,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> dict:
     """
     Returns daily metric data for a resource over a given month.
