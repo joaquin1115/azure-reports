@@ -34,7 +34,18 @@ export function GenerarReportePage() {
   const { instance, accounts } = useMsal();
 
   useEffect(() => {
-    api.get("/clientes").then((r) => setClientes(r.data)).catch(() => {});
+    api
+      .get("/clientes")
+      .then((r) => {
+        console.log("DEBUG /clientes response:", r.data);
+        console.log("DEBUG type:", typeof r.data);
+        console.log("DEBUG isArray:", Array.isArray(r.data));
+
+        setClientes(r.data);
+      })
+      .catch((e) => {
+        console.error("ERROR cargando clientes:", e);
+      });
   }, []);
 
   const cargarRecursos = async (id: string) => {
