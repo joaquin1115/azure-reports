@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/azurereport"
 
     # Azure Entra ID
-    azure_tenant_id: str = "YOUR_TENANT_ID"
+    azure_tenant_id: str = "aa3caa64-02b4-4eba-b442-333bedb5121b"
     azure_client_id: str = "YOUR_CLIENT_ID"  # App registration client ID
     azure_client_secret: str = ""
     use_managed_identity: bool = True
