@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     jwks_uri: str = ""  # Auto-built from tenant_id
 
     # CORS
-    allowed_origins: list[str] = ["http://localhost:5173"]
+    allowed_origins: list[str] = ["https://proud-pond-071d4800f.7.azurestaticapps.net"]
 
     def model_post_init(self, __context):
         if not self.jwks_uri:
