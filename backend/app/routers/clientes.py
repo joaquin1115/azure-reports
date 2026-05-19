@@ -110,8 +110,6 @@ async def obtener_recursos(
         recursos = await obtener_recursos_por_tenant(
             tenant_id=tenant.tenant_id_azure,
             subscription_id=tenant.tenant_id_azure,  # In prod, subscription stored separately
-            client_id="APP_CLIENT_ID",
-            client_secret="APP_SECRET",
         )
         todos_recursos.extend(recursos)
     return todos_recursos
