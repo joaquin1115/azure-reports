@@ -16,7 +16,6 @@ async def _get_jwks() -> dict:
     if _jwks_cache:
         return _jwks_cache
     async with httpx.AsyncClient() as client:
-        console.log(f"Fetching JWKS from {settings.jwks_uri}")
         resp = await client.get(settings.jwks_uri)
         resp.raise_for_status()
         _jwks_cache = resp.json()
