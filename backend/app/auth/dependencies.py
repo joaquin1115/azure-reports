@@ -75,6 +75,8 @@ def require_role(*roles: RolEnum):
                 detail="No se encontró el correo del usuario en el token",
             )
 
+        print(f"Correo: {correo}")
+
         usuario_result = await db.execute(
             select(Usuario).where(func.lower(Usuario.correo) == correo.lower())
         )
