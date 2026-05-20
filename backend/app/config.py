@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Azure credentials for ARM/Advisor calls (Managed Identity only)
     managed_identity_client_id: str = ""
 
+    # Azure credentials for ARM/Advisor calls (Managed Identity only)
+    managed_identity_client_id: str = ""
+
     # Azure Blob Storage
     azure_storage_connection_string: str = "YOUR_STORAGE_CONNECTION_STRING"
     azure_storage_container: str = "reportes"
