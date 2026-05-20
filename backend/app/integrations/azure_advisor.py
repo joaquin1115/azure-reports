@@ -11,12 +11,11 @@ GRAVEDAD_MAP = {
 
 async def obtener_recomendaciones(
     subscription_id: str,
-    tenant_id: str,
     gravedad: GravedadEnum,
     client_id: str | None = None,
     client_secret: str | None = None,
 ) -> list[dict]:
-    token = await _get_access_token(tenant_id, client_id, client_secret)
+    token = await _get_access_token()
     niveles = GRAVEDAD_MAP[gravedad]
     url = (
         f"https://management.azure.com/subscriptions/{subscription_id}"
