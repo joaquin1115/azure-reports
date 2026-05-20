@@ -13,5 +13,5 @@ export const msalConfig: Configuration = {
 };
 
 export const loginRequest: RedirectRequest = {
-  scopes: ["User.Read"],
+  scopes: ["api://d323155c-9db3-4db8-814b-1a72ad9ee632/access_as_user"],
 };
