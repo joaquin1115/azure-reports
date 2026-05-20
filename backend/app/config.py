@@ -10,9 +10,12 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/azurereport"
 
-    # Azure Entra ID
+    # Azure Entra ID (API auth)
     azure_tenant_id: str = "YOUR_TENANT_ID"
     azure_client_id: str = "YOUR_CLIENT_ID"  # App registration client ID
+
+    # Azure credentials for ARM/Advisor calls (Managed Identity only)
+    managed_identity_client_id: str = ""
 
     # Azure Blob Storage
     azure_storage_connection_string: str = "YOUR_STORAGE_CONNECTION_STRING"
