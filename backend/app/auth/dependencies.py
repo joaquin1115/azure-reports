@@ -2,13 +2,24 @@ import httpx
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
-from app.models.models import RolEnum
+from app.db.session import get_db
+from app.models.models import RolEnum, Usuario
 
 settings = get_settings()
 bearer_scheme = HTTPBearer()
 
 _jwks_cache: dict = {}
+
+
+def _get_valid_audiences() -> tuple[str, ...]:
+    configured = settings.azure_client_id.strip()
+    if configured.startswith("api://"):
+        raw_client_id = configured.removeprefix("api://")
+        return (configured, raw_client_id)
+    return (configured, f"api://{configured}")
 
 
 async def _get_jwks() -> dict:
@@ -39,7 +50,7 @@ async def get_current_user(
             token,
             key,
             algorithms=["RS256"],
-            audience=settings.azure_client_id,
+            audience=_get_valid_audiences(),
         )
         return payload
     except JWTError as e:
@@ -50,14 +61,39 @@ async def get_current_user(
 
 
 def require_role(*roles: RolEnum):
-    async def dependency(current_user: dict = Depends(get_current_user)) -> dict:
-        # App roles come in the "roles" claim from Entra ID
-        user_roles = current_user.get("roles", [])
-        if not any(r.value in user_roles for r in roles):
+    async def dependency(
+        current_user: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> dict:
+        correo = (
+            current_user.get("preferred_username")
+            or current_user.get("upn")
+            or current_user.get("email")
+        )
+        if not correo:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No se encontró el correo del usuario en el token",
+            )
+
+        usuario_result = await db.execute(
+            select(Usuario).where(func.lower(Usuario.correo) == correo.lower())
+        )
+        usuario = usuario_result.scalar_one_or_none()
+        if not usuario or not usuario.activo:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuario no autorizado o inactivo",
+            )
+
+        if usuario.rol not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes permisos para realizar esta acción",
             )
+
+        current_user["db_usuario_id"] = str(usuario.id)
+        current_user["db_rol"] = usuario.rol.value
         return current_user
     return dependency
 
