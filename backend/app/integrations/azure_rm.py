@@ -66,6 +66,8 @@ async def obtener_metricas_recurso(
     tipo: TipoRecursoEnum,
     periodo_mes: int,
     periodo_anio: int,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> dict:
     """
     Returns daily metric data for a resource over a given month.

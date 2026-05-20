@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Azure Entra ID (API auth)
     azure_tenant_id: str = "YOUR_TENANT_ID"
     azure_client_id: str = "YOUR_CLIENT_ID"  # App registration client ID
+    azure_client_secret: str = ""
+    use_managed_identity: bool = True
+    managed_identity_client_id: str = ""
 
     # Azure credentials for ARM/Advisor calls (Managed Identity only)
     managed_identity_client_id: str = ""
