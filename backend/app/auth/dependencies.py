@@ -14,12 +14,11 @@ bearer_scheme = HTTPBearer()
 _jwks_cache: dict = {}
 
 
-def _get_valid_audiences() -> tuple[str, ...]:
+def _get_valid_audiences() -> str:
     configured = settings.azure_client_id.strip()
     if configured.startswith("api://"):
-        raw_client_id = configured.removeprefix("api://")
-        return (configured, raw_client_id)
-    return (configured, f"api://{configured}")
+        return configured
+    return f"api://{configured}"
 
 
 async def _get_jwks() -> dict:
