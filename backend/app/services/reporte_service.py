@@ -89,9 +89,6 @@ async def _ejecutar_generacion(
             # --- Recomendaciones ---
             recomendaciones = await azure_advisor.obtener_recomendaciones(
                 subscription_id=tenant.tenant_id_azure,
-                tenant_id=tenant.tenant_id_azure,
-                client_id="APP_CLIENT_ID",   # From Key Vault in prod
-                client_secret="APP_SECRET",  # From Key Vault in prod
                 gravedad=config.gravedad,
             )
 
@@ -101,9 +98,6 @@ async def _ejecutar_generacion(
                 metricas_raw = await azure_rm.obtener_metricas_recurso(
                     resource_id=recurso.resource_id_azure,
                     tipo=recurso.tipo,
-                    tenant_id=tenant.tenant_id_azure,
-                    client_id="APP_CLIENT_ID",
-                    client_secret="APP_SECRET",
                     periodo_mes=config.periodo_mes,
                     periodo_anio=config.periodo_anio,
                 )
