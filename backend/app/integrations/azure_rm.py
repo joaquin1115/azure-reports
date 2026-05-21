@@ -1,5 +1,6 @@
 import httpx
 from azure.identity.aio import ManagedIdentityCredential
+from azure.core.exceptions import ClientAuthenticationError
 from app.config import get_settings
 from app.schemas.schemas import RecursoAzure
 from app.models.models import TipoRecursoEnum
@@ -21,34 +22,26 @@ METRICS_BY_TYPE = {
 
 
 async def _get_access_token() -> str:
-    credential = ManagedIdentityCredential(
-        client_id=settings.managed_identity_client_id or None
-    )
+    configured_client_id = settings.managed_identity_client_id.strip()
+
+    if configured_client_id:
+        credential = ManagedIdentityCredential(client_id=configured_client_id)
+        try:
+            token = await credential.get_token("https://management.azure.com/.default")
+            return token.token
+        except ClientAuthenticationError as exc:
+            # Fallback to system-assigned MI when configured client id is invalid/not assigned.
+            if "No User Assigned or Delegated Managed Identity found" not in str(exc):
+                raise
+        finally:
+            await credential.close()
+
+    credential = ManagedIdentityCredential()
     try:
         token = await credential.get_token("https://management.azure.com/.default")
         return token.token
     finally:
         await credential.close()
-
-
-async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
-    """Lists subscription IDs visible by the managed identity for a given tenant."""
-    token = await _get_access_token()
-    url = "https://management.azure.com/subscriptions?api-version=2020-01-01"
-    subscription_ids: list[str] = []
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
-        resp.raise_for_status()
-        data = resp.json()
-        for item in data.get("value", []):
-            tenant = item.get("tenantId")
-            state = item.get("state")
-            sub_id = item.get("subscriptionId")
-            if tenant == tenant_id and state == "Enabled" and sub_id:
-                subscription_ids.append(sub_id)
-
-    return subscription_ids
 
 
 async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
