@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     azure_client_id: str  # App registration client ID
 
     use_managed_identity: bool = True
+    managed_identity_client_id: str = ""
 
     # Azure Blob Storage
     azure_storage_connection_string: str
