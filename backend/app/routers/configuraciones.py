@@ -33,7 +33,11 @@ async def listar_configuraciones(
     return result.scalars().all()
 
 
-@router.post("/configuraciones", response_model=ConfiguracionOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/configuraciones",
+    response_model=ConfiguracionOut,
+    status_code=status.HTTP_201_CREATED
+)
 async def crear_configuracion(
     body: ConfiguracionCreate,
     db: AsyncSession = Depends(get_db),
@@ -47,20 +51,30 @@ async def crear_configuracion(
         gravedad=body.gravedad,
         guardada=body.guardada,
     )
+
     db.add(config)
+
     await db.flush()
 
     for r in body.recursos:
-        db.add(RecursoConfig(
-            configuracion_id=config.id,
-            resource_id_azure=r.resource_id_azure,
-            nombre=r.nombre,
-            tipo=r.tipo,
-        ))
+        db.add(
+            RecursoConfig(
+                configuracion_id=config.id,
+                resource_id_azure=r.resource_id_azure,
+                nombre=r.nombre,
+                tipo=r.tipo,
+            )
+        )
 
     await db.commit()
-    await db.refresh(config)
-    return config
+
+    result = await db.execute(
+        select(Configuracion)
+        .options(selectinload(Configuracion.recursos))
+        .where(Configuracion.id == config.id)
+    )
+
+    return result.scalar_one()
 
 
 @router.delete("/configuraciones/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
