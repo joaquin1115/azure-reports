@@ -94,7 +94,7 @@ def require_role(*roles: RolEnum):
             )
 
         current_user["db_usuario_id"] = str(usuario.id)
-        current_user["db_rol"] = usuario.rol.value
+        current_user["db_rol"] = usuario.rol
         return current_user
     return dependency
 
