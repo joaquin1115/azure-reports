@@ -110,8 +110,10 @@ async def obtener_recursos(
 
     todos_recursos: list[RecursoAzure] = []
     for tenant in tenants:
+        print(f"Obteniendo recursos para tenant {tenant.tenant_id_azure}")
         subscription_ids = await listar_subscriptions_por_tenant(tenant.tenant_id_azure)
         for subscription_id in subscription_ids:
+            print(f"Obteniendo recursos para subscription {subscription_id}")
             recursos = await obtener_recursos_por_tenant(
                 tenant_id=tenant.tenant_id_azure,
                 subscription_id=subscription_id,
