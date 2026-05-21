@@ -8,7 +8,10 @@ from app.db.session import get_db
 from app.auth.dependencies import require_admin, require_especialista
 from app.models.models import Cliente, Tenant, Reporte
 from app.schemas.schemas import ClienteCreate, ClienteUpdate, ClienteOut, RecursoAzure
-from app.integrations.azure_rm import obtener_recursos_por_tenant
+from app.integrations.azure_rm import (
+    listar_subscriptions_por_tenant,
+    obtener_recursos_por_tenant,
+)
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
@@ -107,9 +110,11 @@ async def obtener_recursos(
 
     todos_recursos: list[RecursoAzure] = []
     for tenant in tenants:
-        recursos = await obtener_recursos_por_tenant(
-            tenant_id=tenant.tenant_id_azure,
-            subscription_id=tenant.tenant_id_azure,  # In prod, subscription stored separately
-        )
-        todos_recursos.extend(recursos)
+        subscription_ids = await listar_subscriptions_por_tenant(tenant.tenant_id_azure)
+        for subscription_id in subscription_ids:
+            recursos = await obtener_recursos_por_tenant(
+                tenant_id=tenant.tenant_id_azure,
+                subscription_id=subscription_id,
+            )
+            todos_recursos.extend(recursos)
     return todos_recursos
