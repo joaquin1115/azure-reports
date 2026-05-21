@@ -6,6 +6,7 @@ from app.schemas.schemas import RecursoAzure
 from app.models.models import TipoRecursoEnum
 
 settings = get_settings()
+ARM_TIMEOUT = httpx.Timeout(20.0, connect=5.0)
 
 # Mapping Azure resource types → our enum
 RESOURCE_TYPE_MAP = {
@@ -50,16 +51,22 @@ async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
     url = "https://management.azure.com/subscriptions?api-version=2020-01-01"
     subscription_ids: list[str] = []
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
-        resp.raise_for_status()
-        data = resp.json()
-        for item in data.get("value", []):
-            tenant = item.get("tenantId")
-            state = item.get("state")
-            sub_id = item.get("subscriptionId")
-            if tenant == tenant_id and state == "Enabled" and sub_id:
-                subscription_ids.append(sub_id)
+    async with httpx.AsyncClient(timeout=ARM_TIMEOUT) as client:
+        for attempt in range(2):
+            try:
+                resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+                resp.raise_for_status()
+                data = resp.json()
+                for item in data.get("value", []):
+                    tenant = item.get("tenantId")
+                    state = item.get("state")
+                    sub_id = item.get("subscriptionId")
+                    if tenant == tenant_id and state == "Enabled" and sub_id:
+                        subscription_ids.append(sub_id)
+                break
+            except httpx.ReadTimeout:
+                if attempt == 1:
+                    return []
 
     return subscription_ids
 
