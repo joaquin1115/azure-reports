@@ -21,9 +21,7 @@ METRICS_BY_TYPE = {
 
 
 async def _get_access_token() -> str:
-    credential = DefaultAzureCredential(
-        managed_identity_client_id=settings.managed_identity_client_id or None
-    )
+    credential = DefaultAzureCredential()
     token = await credential.get_token("https://management.azure.com/.default")
     await credential.close()
     return token.token
