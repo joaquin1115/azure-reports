@@ -8,20 +8,16 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Database
-    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/azurereport"
+    database_url: str
 
     # Azure Entra ID (API auth)
-    azure_tenant_id: str = "aa3caa64-02b4-4eba-b442-333bedb5121b"
-    azure_client_id: str = "d323155c-9db3-4db8-814b-1a72ad9ee632"  # App registration client ID
+    azure_tenant_id: str
+    azure_client_id: str  # App registration client ID
 
     use_managed_identity: bool = True
-    managed_identity_client_id: str = ""
-
-    # Azure credentials for ARM/Advisor calls (Managed Identity only)
-    managed_identity_client_id: str = ""
 
     # Azure Blob Storage
-    azure_storage_connection_string: str = "YOUR_STORAGE_CONNECTION_STRING"
+    azure_storage_connection_string: str
     azure_storage_container: str = "reportes"
 
     # JWT / JWKS
