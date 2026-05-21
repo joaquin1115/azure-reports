@@ -80,13 +80,15 @@ async def obtener_recursos_por_tenant(
     tipos = ",".join(RESOURCE_TYPE_MAP.keys())
     url = (
         f"https://management.azure.com/subscriptions/{subscription_id}"
-        f"/resources?$filter=resourceType eq '{tipos}'&api-version=2021-04-01"
+        f"/resources?&api-version=2021-04-01"
     )
+    print(url)
     recursos = []
     async with httpx.AsyncClient() as client:
         resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
         resp.raise_for_status()
         data = resp.json()
+        print(data)
         for item in data.get("value", []):
             rt = item.get("type", "").lower()
             tipo = RESOURCE_TYPE_MAP.get(rt)
