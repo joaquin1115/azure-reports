@@ -24,7 +24,9 @@ async def generar_reporte(
     current_user: dict = Depends(require_especialista()),
 ):
     """Initiates async report generation. Returns reporte_id immediately."""
+    print(current_user)
     correo = current_user.get("preferred_username") or current_user.get("upn")
+    print(correo)
     usuario_result = await db.execute(select(Usuario).where(Usuario.correo == correo))
     usuario = usuario_result.scalar_one_or_none()
     if not usuario:
