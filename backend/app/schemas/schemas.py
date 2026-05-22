@@ -157,7 +157,6 @@ class ReporteCreate(BaseModel):
 
 class ReporteOut(BaseModel):
     id: UUID
-    cliente_id: UUID
     configuracion_id: UUID
     usuario_id: UUID
     periodo_mes: int
