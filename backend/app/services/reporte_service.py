@@ -35,7 +35,6 @@ async def iniciar_generacion(
         raise ValueError("Configuración no encontrada")
 
     reporte = Reporte(
-        cliente_id=config.cliente_id,
         configuracion_id=configuracion_id,
         usuario_id=usuario_id,
         periodo_mes=config.periodo_mes,
