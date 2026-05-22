@@ -94,12 +94,16 @@ async def listar_reportes(
 
     query = (
         select(Reporte)
-        .options(selectinload(Reporte.cliente))
-        .where(Reporte.cliente_id.in_(cliente_ids))
+        .join(Reporte.configuracion)
+        .options(
+            selectinload(Reporte.configuracion),
+            selectinload(Reporte.usuario),
+        )
+        .where(Configuracion.cliente_id.in_(cliente_ids))
         .order_by(Reporte.creado_en.desc())
     )
     if cliente_id:
-        query = query.where(Reporte.cliente_id == cliente_id)
+        query = query.where(Configuracion.cliente_id == cliente_id)
     if periodo_mes:
         query = query.where(Reporte.periodo_mes == periodo_mes)
     if periodo_anio:

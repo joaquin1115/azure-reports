@@ -33,7 +33,7 @@ export function AppLayout() {
     if (account) {
       const claims = account.idTokenClaims as Record<string, unknown>;
       const roles = (claims?.roles as string[]) ?? [];
-      const r = "admin";
+      const r = "admin"; // roles.includes("admin") ? "admin" : "especialista"
       setUsuario(account.name ?? "", account.username, r);
     }
   }, [isAuthenticated]);
