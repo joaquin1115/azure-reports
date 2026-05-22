@@ -137,7 +137,11 @@ class Cliente(Base):
     )
 
     reportes: Mapped[list["Reporte"]] = relationship(
-        back_populates="cliente",
+        "Reporte",
+        secondary="configuraciones",
+        primaryjoin="Cliente.id == Configuracion.cliente_id",
+        secondaryjoin="Configuracion.id == Reporte.configuracion_id",
+        viewonly=True,
     )
 
 
@@ -387,6 +391,7 @@ class Reporte(Base):
         nullable=False,
     )
 
+
     usuario_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("usuarios.id"),
         nullable=False,
@@ -442,6 +447,7 @@ class Reporte(Base):
     configuracion: Mapped["Configuracion"] = relationship(
         back_populates="reportes",
     )
+
 
     usuario: Mapped["Usuario"] = relationship(
         back_populates="reportes",
