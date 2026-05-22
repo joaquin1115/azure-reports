@@ -382,11 +382,6 @@ class Reporte(Base):
         default=uuid.uuid4,
     )
 
-    cliente_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("clientes.id"),
-        nullable=False,
-    )
-
     configuracion_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("configuraciones.id"),
         nullable=False,
