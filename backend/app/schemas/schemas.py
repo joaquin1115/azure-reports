@@ -167,7 +167,6 @@ class ReporteOut(BaseModel):
     url_pdf: Optional[str]
     estado: EstadoReporteEnum
     creado_en: datetime
-    cliente: ClienteSimple
 
     model_config = {"from_attributes": True}
 
