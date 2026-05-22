@@ -64,11 +64,7 @@ def require_role(*roles: RolEnum):
         current_user: dict = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
     ) -> dict:
-        correo = (
-            current_user.get("preferred_username")
-            or current_user.get("upn")
-            or current_user.get("email")
-        )
+        correo = current_user.get("email")
         if not correo:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
