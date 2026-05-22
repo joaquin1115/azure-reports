@@ -439,10 +439,6 @@ class Reporte(Base):
         nullable=False,
     )
 
-    cliente: Mapped["Cliente"] = relationship(
-        back_populates="reportes",
-    )
-
     configuracion: Mapped["Configuracion"] = relationship(
         back_populates="reportes",
     )
