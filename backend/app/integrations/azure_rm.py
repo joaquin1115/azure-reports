@@ -135,10 +135,12 @@ async def obtener_metricas_recurso(
                 f"&interval=P1D"
                 f"&timespan={start}/{end}"
             )
+            print(url)
             resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
             if resp.status_code != 200:
                 continue
             data = resp.json()
+            print(data)
             valores = []
             fechas = []
             for serie in data.get("value", []):
