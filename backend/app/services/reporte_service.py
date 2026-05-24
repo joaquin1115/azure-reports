@@ -60,6 +60,7 @@ async def _ejecutar_generacion(
 
     async with AsyncSessionLocal() as db:
         reporte = await db.get(Reporte, reporte_id)
+        print(3)
         reporte.estado = EstadoReporteEnum.procesando
         reporte.inicio_generacion = datetime.utcnow()
         await db.commit()
@@ -140,6 +141,7 @@ async def _ejecutar_generacion(
             reporte.fin_generacion = fin
             reporte.tiempo_generacion_seg = (fin - reporte.inicio_generacion).total_seconds()
             reporte.url_pdf = nombre_blob
+            print(1)
             reporte.estado = EstadoReporteEnum.completado
             await db.commit()
 
@@ -150,6 +152,7 @@ async def _ejecutar_generacion(
             })
 
         except Exception as exc:
+            print(2)
             reporte.estado = EstadoReporteEnum.error
             reporte.error_mensaje = str(exc)
             await db.commit()
