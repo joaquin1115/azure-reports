@@ -101,6 +101,7 @@ async def _ejecutar_generacion(
             # --- Métricas por recurso ---
             resultados_por_recurso = []
             for recurso in recursos:
+                print(recurso)
                 metricas_raw = await azure_rm.obtener_metricas_recurso(
                     resource_id=recurso.resource_id_azure,
                     tipo=recurso.tipo,
@@ -117,7 +118,7 @@ async def _ejecutar_generacion(
                 ]
                 resultados_por_recurso.append({
                     "nombre": recurso.nombre,
-                    "tipo": recurso.tipo.value,
+                    "tipo": recurso.tipo,
                     "metricas": metricas_analizadas,
                 })
 
