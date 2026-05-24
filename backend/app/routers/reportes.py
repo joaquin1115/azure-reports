@@ -119,7 +119,7 @@ async def descargar_reporte(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_especialista()),
 ):
-    """Returns a time-limited SAS URL to download the PDF."""
+    """Returns a time-limited SAS URL to download the report file."""
     reporte = await db.get(Reporte, reporte_id)
     if not reporte:
         raise HTTPException(status_code=404, detail="Reporte no encontrado")
