@@ -60,6 +60,7 @@ async def _ejecutar_generacion(
 
     async with AsyncSessionLocal() as db:
         reporte = await db.get(Reporte, reporte_id)
+        print(reporte)
         reporte.estado = EstadoReporteEnum.procesando
         reporte.inicio_generacion = datetime.now(timezone.utc)
         await db.commit()
