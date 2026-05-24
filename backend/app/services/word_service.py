@@ -74,12 +74,46 @@ def _descripcion_rendimiento(cpu: ResultadoMetrica | None, memoria: ResultadoMet
     return "Performance con picos de uso" if picos else "Performance estable"
 
 
-def _buscar_metrica(metricas: list[ResultadoMetrica], palabras: list[str]) -> ResultadoMetrica | None:
+def _buscar_metrica(metricas: list[ResultadoMetrica], aliases: list[str]) -> ResultadoMetrica | None:
+    if not metricas:
+        return None
+    normalized = [a.lower() for a in aliases]
     for m in metricas:
         nombre = m.nombre.lower()
-        if all(p in nombre for p in palabras):
+        if any(a in nombre for a in normalized):
             return m
     return None
+
+
+def _tipo_recurso(valor) -> str:
+    raw = getattr(valor, "value", valor)
+    return str(raw).strip().upper()
+
+
+def _fmt_rango(m: ResultadoMetrica | None) -> str:
+    if not m or not m.valores:
+        return "Sin datos"
+    return f"{m.minimo:.2f}% - {m.maximo:.2f}%"
+
+
+def _traducir(texto: str) -> str:
+    if not texto:
+        return ""
+    reglas = {
+        "Ensure Geo-replication is enabled for resilience": "Asegurar que la georreplicación esté habilitada para mejorar la resiliencia",
+        "Use zone-supported App Service Plan": "Usar un App Service Plan con soporte de zonas",
+        "Set minimum instance count for App Service to 2": "Configurar el número mínimo de instancias del App Service en 2",
+        "Enable Health check for App Service": "Habilitar Health Check para App Service",
+        "HighAvailability": "Alta disponibilidad",
+        "Cost": "Costo",
+        "OperationalExcellence": "Excelencia operacional",
+        "Performance": "Rendimiento",
+        "Security": "Seguridad",
+    }
+    out = texto
+    for en, es in reglas.items():
+        out = out.replace(en, es)
+    return out
 
 
 def _consolidar_recomendaciones(recomendaciones: list[dict]) -> list[dict]:
@@ -119,32 +153,32 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
     hdr[3].text = "Detalle del rendimiento"
 
     for r in resultados_por_recurso:
-        if str(r.get("tipo", "")).upper() != "VM":
+        if _tipo_recurso(r.get("tipo", "")) != "VM":
             continue
         metricas = r.get("metricas", [])
-        cpu = _buscar_metrica(metricas, ["cpu"]) or _buscar_metrica(metricas, ["percentage", "cpu"])
-        mem = _buscar_metrica(metricas, ["memory"]) or _buscar_metrica(metricas, ["memoria"])
+        cpu = _buscar_metrica(metricas, ["percentage cpu", "cpupercentage", "cpu"])
+        mem = _buscar_metrica(metricas, ["memorypercentage", "available memory", "memory", "memoria"])
         row = tabla.add_row().cells
         row[0].text = r.get("nombre", "")
-        row[1].text = f"{cpu.minimo if cpu else 0}% - {cpu.maximo if cpu else 0}%"
-        row[2].text = f"{mem.minimo if mem else 0}% - {mem.maximo if mem else 0}%"
+        row[1].text = _fmt_rango(cpu)
+        row[2].text = _fmt_rango(mem)
         row[3].text = _descripcion_rendimiento(cpu, mem)
 
     _asignar_bordes_tabla(tabla)
 
     for r in resultados_por_recurso:
-        tipo = str(r.get("tipo", "")).upper()
+        tipo = _tipo_recurso(r.get("tipo", ""))
         metricas = r.get("metricas", [])
         if tipo == "DB":
             _add_heading(doc, "Porcentaje de Uso de DTU", 2)
             _add_heading(doc, f"Base de datos SQL - {r.get('nombre','')}", 3)
-            dtu = _buscar_metrica(metricas, ["dtu"]) or (metricas[0] if metricas else None)
+            dtu = _buscar_metrica(metricas, ["dtu_consumption_percent", "dtu"]) or (metricas[0] if metricas else None)
             if dtu:
                 doc.add_picture(_grafico_bytes(dtu), width=Inches(6.2))
         elif tipo == "VM":
             _add_heading(doc, f"Máquina Virtual - {r.get('nombre','')}", 2)
-            cpu = _buscar_metrica(metricas, ["cpu"])
-            mem = _buscar_metrica(metricas, ["memory"]) or _buscar_metrica(metricas, ["memoria"])
+            cpu = _buscar_metrica(metricas, ["percentage cpu", "cpupercentage", "cpu"])
+            mem = _buscar_metrica(metricas, ["memorypercentage", "available memory", "memory", "memoria"])
             if cpu:
                 _add_heading(doc, "Porcentaje de Uso de CPU", 3)
                 doc.add_picture(_grafico_bytes(cpu), width=Inches(6.2))
@@ -158,7 +192,11 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
         _add_paragraph(doc, "No se encontraron recomendaciones para el período analizado.")
     for r in recs:
         recursos = ", ".join(r["recursos"]) if r["recursos"] else "sin recursos identificados"
-        texto = f"[{r['impacto']}] {r['categoria']}: {r['descripcion']} Recomendación: {r['accion']}. Recursos: {recursos}."
+        impacto = _traducir(r["impacto"])
+        categoria = _traducir(r["categoria"])
+        descripcion = _traducir(r["descripcion"])
+        accion = _traducir(r["accion"])
+        texto = f"[{impacto}] {categoria}: {descripcion} Recomendación: {accion}. Recursos: {recursos}."
         _add_paragraph(doc, texto)
 
     for p in doc.paragraphs:

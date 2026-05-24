@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.models import Reporte, Configuracion, RecursoConfig, Cliente, Tenant, Usuario, EstadoReporteEnum
@@ -60,7 +60,6 @@ async def _ejecutar_generacion(
 
     async with AsyncSessionLocal() as db:
         reporte = await db.get(Reporte, reporte_id)
-        print(reporte)
         reporte.estado = EstadoReporteEnum.procesando
         reporte.inicio_generacion = datetime.utcnow()
         await db.commit()
@@ -76,7 +75,6 @@ async def _ejecutar_generacion(
             )
             tenants = tenants_result.scalars().all()
 
-            print(tenants)
 
             recursos_result = await db.execute(
                 select(RecursoConfig).where(RecursoConfig.configuracion_id == configuracion_id)
@@ -102,7 +100,6 @@ async def _ejecutar_generacion(
             # --- Métricas por recurso ---
             resultados_por_recurso = []
             for recurso in recursos:
-                print(recurso)
                 metricas_raw = await azure_rm.obtener_metricas_recurso(
                     resource_id=recurso.resource_id_azure,
                     tipo=recurso.tipo,
@@ -123,7 +120,7 @@ async def _ejecutar_generacion(
                     "metricas": metricas_analizadas,
                 })
 
-                        # --- Word ---
+            # --- Word ---
             word_bytes = generar_word(
                 cliente_nombre=cliente.nombre,
                 periodo_mes=config.periodo_mes,
