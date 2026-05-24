@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.models.models import Reporte, Configuracion, RecursoConfig, Cliente, Tenant, Usuario, EstadoReporteEnum
 from app.integrations import azure_rm, azure_advisor, blob_storage
 from app.services.analisis_service import analizar_metrica
-from app.services.pdf_service import generar_pdf
+from app.services.word_service import generar_word
 
 # In-memory SSE subscribers: reporte_id -> asyncio.Queue
 _sse_subscribers: dict[str, asyncio.Queue] = {}
@@ -55,7 +55,7 @@ async def _ejecutar_generacion(
     configuracion_id: uuid.UUID,
     usuario_id: uuid.UUID,
 ):
-    """Background task: fetches data, generates PDF, updates Reporte record."""
+    """Background task: fetches data, generates Word, updates Reporte record."""
     from app.db.session import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
@@ -90,13 +90,14 @@ async def _ejecutar_generacion(
             
             subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
             
-            # --- Recomendaciones ---
+            # --- Recomendaciones (tenant consolidado) ---
+            recomendaciones = []
             for subscription_id in subscription_ids:
-                recomendaciones = await azure_advisor.obtener_recomendaciones(
+                recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
                     subscription_id=subscription_id,
                     gravedad=config.gravedad,
                 )
-                print(recomendaciones)
+                recomendaciones.extend(recomendaciones_sub)
 
             # --- Métricas por recurso ---
             resultados_por_recurso = []
@@ -122,8 +123,8 @@ async def _ejecutar_generacion(
                     "metricas": metricas_analizadas,
                 })
 
-            # --- PDF ---
-            pdf_bytes = generar_pdf(
+                        # --- Word ---
+            word_bytes = generar_word(
                 cliente_nombre=cliente.nombre,
                 periodo_mes=config.periodo_mes,
                 periodo_anio=config.periodo_anio,
@@ -133,8 +134,8 @@ async def _ejecutar_generacion(
             )
 
             # --- Upload to Blob ---
-            nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.pdf"
-            await blob_storage.subir_pdf(pdf_bytes, nombre_blob)
+            nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.docx"
+            await blob_storage.subir_documento(word_bytes, nombre_blob, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
             # --- Update reporte ---
             fin = datetime.utcnow()
