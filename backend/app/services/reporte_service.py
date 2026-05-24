@@ -62,7 +62,7 @@ async def _ejecutar_generacion(
         reporte = await db.get(Reporte, reporte_id)
         print(reporte)
         reporte.estado = EstadoReporteEnum.procesando
-        reporte.inicio_generacion = datetime.now(timezone.utc)
+        reporte.inicio_generacion = datetime.utcnow()
         await db.commit()
 
         try:
