@@ -76,6 +76,8 @@ async def _ejecutar_generacion(
             )
             tenants = tenants_result.scalars().all()
 
+            print(tenants)
+
             recursos_result = await db.execute(
                 select(RecursoConfig).where(RecursoConfig.configuracion_id == configuracion_id)
             )
@@ -85,12 +87,16 @@ async def _ejecutar_generacion(
             tenant = tenants[0] if tenants else None
             if not tenant:
                 raise ValueError("El cliente no tiene tenants configurados")
-
+            
+            subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
+            
             # --- Recomendaciones ---
-            recomendaciones = await azure_advisor.obtener_recomendaciones(
-                subscription_id=tenant.tenant_id_azure,
-                gravedad=config.gravedad,
-            )
+            for subscription_id in subscription_ids:
+                recomendaciones = await azure_advisor.obtener_recomendaciones(
+                    subscription_id=subscription_id,
+                    gravedad=config.gravedad,
+                )
+                print(recomendaciones)
 
             # --- Métricas por recurso ---
             resultados_por_recurso = []
