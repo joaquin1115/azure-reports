@@ -30,6 +30,13 @@ async def obtener_recomendaciones(
             props = item.get("properties", {})
             nivel = props.get("impact", "")
             if nivel in niveles:
+                ahorro_raw = props.get("extendedProperties", {}).get("savingsAmount")
+
+                try:
+                    ahorro_mensual = float(ahorro_raw) if ahorro_raw is not None else 0
+                except (ValueError, TypeError):
+                    ahorro_mensual = 0
+
                 recomendaciones.append({
                     "id": item.get("id"),
                     "categoria": props.get("category", ""),
@@ -38,6 +45,6 @@ async def obtener_recomendaciones(
                     "nombre_recurso": props.get("shortDescription", {}).get("solution", ""),
                     "descripcion": props.get("shortDescription", {}).get("problem", ""),
                     "accion": props.get("shortDescription", {}).get("solution", ""),
-                    "ahorro_mensual_usd": props.get("extendedProperties", {}).get("savingsAmount", None),
+                    "ahorro_mensual_usd": ahorro_mensual,
                 })
     return recomendaciones
