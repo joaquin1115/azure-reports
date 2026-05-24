@@ -1,6 +1,6 @@
 import httpx
 from jose import jwt, JWTError
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.models import RolEnum, Usuario
 
 settings = get_settings()
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 
 _jwks_cache: dict = {}
 
@@ -33,9 +33,16 @@ async def _get_jwks() -> dict:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    token: str | None = Query(default=None),
 ) -> dict:
-    token = credentials.credentials
+    bearer_token = credentials.credentials if credentials else None
+    token = bearer_token or token
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
     try:
         jwks = await _get_jwks()
         header = jwt.get_unverified_header(token)
