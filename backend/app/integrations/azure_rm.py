@@ -119,11 +119,21 @@ async def obtener_metricas_recurso(
 
     token = await _get_access_token()
     metrica_names = METRICS_BY_TYPE[tipo]
+
     last_day = calendar.monthrange(periodo_anio, periodo_mes)[1]
-    start = datetime(periodo_anio, periodo_mes, 1, tzinfo=timezone.utc).isoformat()
-    end = datetime(periodo_anio, periodo_mes, last_day, 23, 59, 59, tzinfo=timezone.utc).isoformat()
+
+    start = (
+        datetime(periodo_anio, periodo_mes, 1, tzinfo=timezone.utc)
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
+
+    end = (
+        datetime(periodo_anio, periodo_mes, last_day, 23, 59, 59, tzinfo=timezone.utc)
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
 
     resultado = {}
+
     async with httpx.AsyncClient() as client:
         for metrica in metrica_names:
             url = (
@@ -135,20 +145,39 @@ async def obtener_metricas_recurso(
                 f"&interval=P1D"
                 f"&timespan={start}/{end}"
             )
+
             print(url)
-            resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+
+            resp = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
             if resp.status_code != 200:
+                print(resp.text)
                 continue
+
             data = resp.json()
             print(data)
+
             valores = []
             fechas = []
+
             for serie in data.get("value", []):
                 for ts in serie.get("timeseries", []):
                     for dp in ts.get("data", []):
                         fechas.append(dp.get("timeStamp", ""))
-                        valores.append(dp.get("maximum") or dp.get("average") or 0.0)
-            resultado[metrica] = {"values": valores, "dates": fechas}
+                        valores.append(
+                            dp.get("maximum")
+                            or dp.get("average")
+                            or 0.0
+                        )
+
+            resultado[metrica] = {
+                "values": valores,
+                "dates": fechas
+            }
+
     return resultado
 
 
