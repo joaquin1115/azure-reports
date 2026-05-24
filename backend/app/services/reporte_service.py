@@ -130,7 +130,7 @@ async def _ejecutar_generacion(
             await blob_storage.subir_pdf(pdf_bytes, nombre_blob)
 
             # --- Update reporte ---
-            fin = datetime.now(timezone.utc)
+            fin = datetime.utcnow()
             reporte.fin_generacion = fin
             reporte.tiempo_generacion_seg = (fin - reporte.inicio_generacion).total_seconds()
             reporte.url_pdf = nombre_blob
