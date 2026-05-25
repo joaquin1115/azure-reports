@@ -74,14 +74,23 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
     valores = resultado.valores or []
     all_zero_or_empty = (not valores) or all((v or 0) == 0 for v in valores)
     linestyle = "--" if all_zero_or_empty else "-"
-    x = range(len(valores))
-    y = valores if valores else [0]
-    x = x if valores else [0]
-    ax.plot(x, y, color="#4f63c8", linewidth=1.5, linestyle=linestyle)
+    x = list(range(len(valores))) if valores else [0, 1]
+    y = valores if valores else [0, 0]
+    ax.set_facecolor("white")
+    ax.plot(x, y, color="#4f63c8", linewidth=1.8, linestyle=linestyle, zorder=3)
+    if not all_zero_or_empty:
+        ax.fill_between(x, y, color="#4f63c8", alpha=0.08, zorder=2)
     ax.set_title(resultado.nombre, fontsize=9, loc="left", pad=6)
     ax.set_ylabel("%", fontsize=8)
     ax.grid(axis="y", linestyle="-", alpha=0.15, color="#000000")
     ax.tick_params(labelsize=7, colors="#666666")
+    if y:
+        y_max = max(y)
+        if y_max <= 0:
+            ax.set_ylim(0, 1)
+        else:
+            ax.set_ylim(0, y_max * 1.2)
+    ax.set_xlim(min(x), max(x) if max(x) > min(x) else min(x) + 1)
     for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_linewidth(1.0)
