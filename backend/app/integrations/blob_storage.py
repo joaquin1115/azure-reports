@@ -11,8 +11,8 @@ import uuid
 settings = get_settings()
 
 
-async def subir_pdf(pdf_bytes: bytes, nombre_blob: str) -> str:
-    """Uploads PDF bytes to Blob Storage and returns the blob name."""
+async def subir_documento(documento_bytes: bytes, nombre_blob: str, content_type: str) -> str:
+    """Uploads document bytes to Blob Storage and returns the blob name."""
 
     async with BlobServiceClient.from_connection_string(
         settings.azure_storage_connection_string
@@ -30,10 +30,10 @@ async def subir_pdf(pdf_bytes: bytes, nombre_blob: str) -> str:
         blob = container.get_blob_client(nombre_blob)
 
         await blob.upload_blob(
-            pdf_bytes,
+            documento_bytes,
             overwrite=True,
             content_settings=ContentSettings(
-                content_type="application/pdf"
+                content_type=content_type
             ),
         )
 
@@ -44,7 +44,7 @@ async def generar_sas_url(
     nombre_blob: str,
     expiry_hours: int = 24
 ) -> str:
-    """Generates a time-limited SAS URL for downloading a PDF."""
+    """Generates a time-limited SAS URL for downloading a file."""
 
     from azure.storage.blob import BlobServiceClient as SyncClient
 
