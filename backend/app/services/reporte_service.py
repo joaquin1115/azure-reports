@@ -106,6 +106,7 @@ async def _ejecutar_generacion(
                     periodo_mes=config.periodo_mes,
                     periodo_anio=config.periodo_anio,
                 )
+                print("metricas raw:", recurso.nombre, metricas_raw)
                 metricas_analizadas = [
                     analizar_metrica(
                         nombre=nombre,
