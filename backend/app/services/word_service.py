@@ -56,53 +56,155 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
     fig.patch.set_facecolor("white")
 
     # Outer Azure-like container
-    outer = patches.Rectangle((0.02, 0.03), 0.96, 0.94, transform=fig.transFigure,
-                              linewidth=1.0, edgecolor="#000000", facecolor="white")
+    outer = patches.Rectangle(
+        (0.02, 0.03),
+        0.96,
+        0.94,
+        transform=fig.transFigure,
+        linewidth=1.0,
+        edgecolor="#000000",
+        facecolor="white",
+        zorder=0
+    )
     fig.patches.append(outer)
+
     # Pill bar
-    fig.patches.append(patches.Rectangle((0.02, 0.86), 0.96, 0.11, transform=fig.transFigure,
-                                         linewidth=0, facecolor="#f8f8f8"))
+    fig.patches.append(
+        patches.Rectangle(
+            (0.02, 0.86),
+            0.96,
+            0.11,
+            transform=fig.transFigure,
+            linewidth=0,
+            facecolor="#f8f8f8",
+            zorder=0
+        )
+    )
+
     # Toolbar
-    fig.patches.append(patches.Rectangle((0.02, 0.75), 0.96, 0.11, transform=fig.transFigure,
-                                         linewidth=0, facecolor="#fbfbfb"))
+    fig.patches.append(
+        patches.Rectangle(
+            (0.02, 0.75),
+            0.96,
+            0.11,
+            transform=fig.transFigure,
+            linewidth=0,
+            facecolor="#fbfbfb",
+            zorder=0
+        )
+    )
+
     # Legend bar
-    fig.patches.append(patches.Rectangle((0.02, 0.03), 0.96, 0.10, transform=fig.transFigure,
-                                         linewidth=0, facecolor="#fafafa"))
+    fig.patches.append(
+        patches.Rectangle(
+            (0.02, 0.03),
+            0.96,
+            0.10,
+            transform=fig.transFigure,
+            linewidth=0,
+            facecolor="#fafafa",
+            zorder=0
+        )
+    )
 
     # Chart area positioned between toolbar and legend
-    ax = fig.add_axes([0.08, 0.18, 0.84, 0.53])
+    ax = fig.add_axes([0.08, 0.18, 0.84, 0.53], zorder=5)
+
     valores = resultado.valores or []
     all_zero_or_empty = (not valores) or all((v or 0) == 0 for v in valores)
+
     linestyle = "--" if all_zero_or_empty else "-"
+
     x = list(range(len(valores))) if valores else [0, 1]
     y = valores if valores else [0, 0]
+
     ax.set_facecolor("white")
-    ax.plot(x, y, color="#4f63c8", linewidth=1.8, linestyle=linestyle, zorder=3)
+
+    ax.plot(
+        x,
+        y,
+        color="#4f63c8",
+        linewidth=1.8,
+        linestyle=linestyle,
+        zorder=3
+    )
+
     if not all_zero_or_empty:
-        ax.fill_between(x, y, color="#4f63c8", alpha=0.08, zorder=2)
+        ax.fill_between(
+            x,
+            y,
+            color="#4f63c8",
+            alpha=0.08,
+            zorder=2
+        )
+
     ax.set_title(resultado.nombre, fontsize=9, loc="left", pad=6)
     ax.set_ylabel("%", fontsize=8)
-    ax.grid(axis="y", linestyle="-", alpha=0.15, color="#000000")
+
+    ax.grid(
+        axis="y",
+        linestyle="-",
+        alpha=0.15,
+        color="#000000"
+    )
+
     ax.tick_params(labelsize=7, colors="#666666")
+
     if y:
         y_max = max(y)
+
         if y_max <= 0:
             ax.set_ylim(0, 1)
         else:
             ax.set_ylim(0, y_max * 1.2)
-    ax.set_xlim(min(x), max(x) if max(x) > min(x) else min(x) + 1)
+
+    ax.set_xlim(
+        min(x),
+        max(x) if max(x) > min(x) else min(x) + 1
+    )
+
     for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_linewidth(1.0)
         spine.set_edgecolor("black")
 
     # Header / toolbar / legend text decorations
-    fig.text(0.05, 0.905, f"{resultado.nombre[:46]}...", fontsize=8, color="#222222")
-    fig.text(0.05, 0.79, "Add metric   |   Line chart   |   Drill into logs", fontsize=7.5, color="#444444")
+    titulo = resultado.nombre[:46]
+    if len(resultado.nombre) > 46:
+        titulo += "..."
+
+    fig.text(
+        0.05,
+        0.905,
+        titulo,
+        fontsize=8,
+        color="#222222",
+        zorder=10
+    )
+
+    fig.text(
+        0.05,
+        0.79,
+        "Add metric   |   Line chart   |   Drill into logs",
+        fontsize=7.5,
+        color="#444444",
+        zorder=10
+    )
+
     promedio = sum(valores) / len(valores) if valores else 0
-    fig.text(0.06, 0.07, "■", fontsize=10, color="#4f63c8")
-    fig.text(0.08, 0.07, resultado.nombre, fontsize=7.5, color="#555555")
-    fig.text(0.87, 0.07, f"{promedio:.4f}%", fontsize=8, color="#222222", ha="right")
+
+    fig.text(0.06, 0.07, "■", fontsize=10, color="#4f63c8", zorder=10)
+    fig.text(0.08, 0.07, resultado.nombre, fontsize=7.5, color="#555555", zorder=10)
+
+    fig.text(
+        0.87,
+        0.07,
+        f"{promedio:.4f}%",
+        fontsize=8,
+        color="#222222",
+        ha="right",
+        zorder=10
+    )
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=140, bbox_inches="tight")
