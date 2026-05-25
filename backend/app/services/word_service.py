@@ -96,6 +96,32 @@ def _fmt_rango(m: ResultadoMetrica | None) -> str:
     return f"{m.minimo:.2f}% - {m.maximo:.2f}%"
 
 
+def _label_tipo(tipo: str) -> str:
+    return {
+        "VM": "Máquina Virtual",
+        "DB": "Base de Datos SQL",
+        "ASP": "App Service Plan",
+    }.get(tipo, tipo or "Recurso")
+
+
+def _metricas_por_tipo(tipo: str, metricas: list[ResultadoMetrica]) -> list[tuple[str, ResultadoMetrica | None]]:
+    if tipo == "VM":
+        return [
+            ("Porcentaje de Uso de CPU", _buscar_metrica(metricas, ["percentage cpu", "cpupercentage", "cpu"])),
+            ("Porcentaje de Uso de Memoria RAM", _buscar_metrica(metricas, ["memorypercentage", "available memory", "memory", "memoria"])),
+        ]
+    if tipo == "ASP":
+        return [
+            ("Porcentaje de Uso de CPU", _buscar_metrica(metricas, ["cpupercentage", "cpu percentage", "cpu"])),
+            ("Porcentaje de Uso de Memoria", _buscar_metrica(metricas, ["memorypercentage", "memory percentage", "memory", "memoria"])),
+        ]
+    if tipo == "DB":
+        return [
+            ("Porcentaje de Uso de DTU", _buscar_metrica(metricas, ["dtu_consumption_percent", "dtu"]) or (metricas[0] if metricas else None)),
+        ]
+    return [(m.nombre, m) for m in metricas]
+
+
 def _traducir(texto: str) -> str:
     if not texto:
         return ""
@@ -147,44 +173,34 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
     _add_heading(doc, "PERFORMANCE DE COMPONENTES", 1)
     tabla = doc.add_table(rows=1, cols=4)
     hdr = tabla.rows[0].cells
-    hdr[0].text = "Máquinas Virtuales"
-    hdr[1].text = "Performance de CPU (Mínimo – Máximo)"
-    hdr[2].text = "Performance de Memoria (Mínimo – Máximo)"
+    hdr[0].text = "Recurso"
+    hdr[1].text = "Métrica principal (Mínimo – Máximo)"
+    hdr[2].text = "Métrica secundaria (Mínimo – Máximo)"
     hdr[3].text = "Detalle del rendimiento"
 
     for r in resultados_por_recurso:
-        if _tipo_recurso(r.get("tipo", "")) != "VM":
-            continue
+        tipo = _tipo_recurso(r.get("tipo", ""))
         metricas = r.get("metricas", [])
-        cpu = _buscar_metrica(metricas, ["percentage cpu", "cpupercentage", "cpu"])
-        mem = _buscar_metrica(metricas, ["memorypercentage", "available memory", "memory", "memoria"])
+        metricas_tipo = _metricas_por_tipo(tipo, metricas)
+        principal = metricas_tipo[0][1] if metricas_tipo else None
+        secundaria = metricas_tipo[1][1] if len(metricas_tipo) > 1 else None
         row = tabla.add_row().cells
-        row[0].text = r.get("nombre", "")
-        row[1].text = _fmt_rango(cpu)
-        row[2].text = _fmt_rango(mem)
-        row[3].text = _descripcion_rendimiento(cpu, mem)
+        row[0].text = f"{_label_tipo(tipo)} - {r.get('nombre', '')}"
+        row[1].text = _fmt_rango(principal)
+        row[2].text = _fmt_rango(secundaria) if secundaria else "No aplica"
+        row[3].text = _descripcion_rendimiento(principal, secundaria)
 
     _asignar_bordes_tabla(tabla)
 
     for r in resultados_por_recurso:
         tipo = _tipo_recurso(r.get("tipo", ""))
         metricas = r.get("metricas", [])
-        if tipo == "DB":
-            _add_heading(doc, "Porcentaje de Uso de DTU", 2)
-            _add_heading(doc, f"Base de datos SQL - {r.get('nombre','')}", 3)
-            dtu = _buscar_metrica(metricas, ["dtu_consumption_percent", "dtu"]) or (metricas[0] if metricas else None)
-            if dtu:
-                doc.add_picture(_grafico_bytes(dtu), width=Inches(6.2))
-        elif tipo == "VM":
-            _add_heading(doc, f"Máquina Virtual - {r.get('nombre','')}", 2)
-            cpu = _buscar_metrica(metricas, ["percentage cpu", "cpupercentage", "cpu"])
-            mem = _buscar_metrica(metricas, ["memorypercentage", "available memory", "memory", "memoria"])
-            if cpu:
-                _add_heading(doc, "Porcentaje de Uso de CPU", 3)
-                doc.add_picture(_grafico_bytes(cpu), width=Inches(6.2))
-            if mem:
-                _add_heading(doc, "Porcentaje de Uso de Memoria RAM", 3)
-                doc.add_picture(_grafico_bytes(mem), width=Inches(6.2))
+        _add_heading(doc, f"{_label_tipo(tipo)} - {r.get('nombre','')}", 2)
+        for titulo_metrica, metrica in _metricas_por_tipo(tipo, metricas):
+            if not metrica:
+                continue
+            _add_heading(doc, titulo_metrica, 3)
+            doc.add_picture(_grafico_bytes(metrica), width=Inches(6.2))
 
     _add_heading(doc, "RECOMENDACIONES Y SUGERENCIAS", 1)
     recs = _consolidar_recomendaciones(recomendaciones)
