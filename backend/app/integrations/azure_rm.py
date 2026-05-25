@@ -16,7 +16,7 @@ RESOURCE_TYPE_MAP = {
 }
 
 METRICS_BY_TYPE = {
-    TipoRecursoEnum.vm: ["Percentage CPU", "Available Memory Bytes"],
+    TipoRecursoEnum.vm: ["Percentage CPU", "Available Memory Percentage"],
     TipoRecursoEnum.db: ["dtu_consumption_percent"],
     TipoRecursoEnum.asp: ["CpuPercentage", "MemoryPercentage"],
 }
@@ -142,7 +142,7 @@ async def obtener_metricas_recurso(
                 f"?api-version=2023-10-01"
                 f"&metricnames={metrica}"
                 f"&aggregation=Maximum,Minimum,Average"
-                f"&interval=P1D"
+                f"&interval=PT6H"
                 f"&timespan={start}/{end}"
             )
 
@@ -158,7 +158,7 @@ async def obtener_metricas_recurso(
                 continue
 
             data = resp.json()
-            print(data)
+            print("data:", data)
 
             valores = []
             fechas = []
