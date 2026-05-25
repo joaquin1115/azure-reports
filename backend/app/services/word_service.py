@@ -4,6 +4,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import patches
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -51,12 +52,49 @@ def _asignar_bordes_tabla(table):
 
 
 def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
-    fig, ax = plt.subplots(figsize=(7.5, 2.4))
-    ax.plot(range(len(resultado.valores)), resultado.valores, color="#1987af", linewidth=2)
-    ax.set_title(resultado.nombre, fontsize=9)
+    fig = plt.figure(figsize=(8.2, 3.6), dpi=140)
+    fig.patch.set_facecolor("white")
+
+    # Outer Azure-like container
+    outer = patches.Rectangle((0.02, 0.03), 0.96, 0.94, transform=fig.transFigure,
+                              linewidth=1.0, edgecolor="#000000", facecolor="white")
+    fig.patches.append(outer)
+    # Pill bar
+    fig.patches.append(patches.Rectangle((0.02, 0.86), 0.96, 0.11, transform=fig.transFigure,
+                                         linewidth=0, facecolor="#f8f8f8"))
+    # Toolbar
+    fig.patches.append(patches.Rectangle((0.02, 0.75), 0.96, 0.11, transform=fig.transFigure,
+                                         linewidth=0, facecolor="#fbfbfb"))
+    # Legend bar
+    fig.patches.append(patches.Rectangle((0.02, 0.03), 0.96, 0.10, transform=fig.transFigure,
+                                         linewidth=0, facecolor="#fafafa"))
+
+    # Chart area positioned between toolbar and legend
+    ax = fig.add_axes([0.08, 0.18, 0.84, 0.53])
+    valores = resultado.valores or []
+    all_zero_or_empty = (not valores) or all((v or 0) == 0 for v in valores)
+    linestyle = "--" if all_zero_or_empty else "-"
+    x = range(len(valores))
+    y = valores if valores else [0]
+    x = x if valores else [0]
+    ax.plot(x, y, color="#4f63c8", linewidth=1.5, linestyle=linestyle)
+    ax.set_title(resultado.nombre, fontsize=9, loc="left", pad=6)
     ax.set_ylabel("%", fontsize=8)
-    ax.grid(axis="y", linestyle="--", alpha=0.4)
-    ax.tick_params(labelsize=7)
+    ax.grid(axis="y", linestyle="-", alpha=0.15, color="#000000")
+    ax.tick_params(labelsize=7, colors="#666666")
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1.0)
+        spine.set_edgecolor("black")
+
+    # Header / toolbar / legend text decorations
+    fig.text(0.05, 0.905, f"{resultado.nombre[:46]}...", fontsize=8, color="#222222")
+    fig.text(0.05, 0.79, "Add metric   |   Line chart   |   Drill into logs", fontsize=7.5, color="#444444")
+    promedio = sum(valores) / len(valores) if valores else 0
+    fig.text(0.06, 0.07, "■", fontsize=10, color="#4f63c8")
+    fig.text(0.08, 0.07, resultado.nombre, fontsize=7.5, color="#555555")
+    fig.text(0.87, 0.07, f"{promedio:.4f}%", fontsize=8, color="#222222", ha="right")
+
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=140, bbox_inches="tight")
     plt.close(fig)
@@ -122,6 +160,23 @@ def _metricas_por_tipo(tipo: str, metricas: list[ResultadoMetrica]) -> list[tupl
     return [(m.nombre, m) for m in metricas]
 
 
+def _agregar_tabla_tipo(doc: Document, titulo: str, filas: list[dict]):
+    _add_heading(doc, titulo, 2)
+    tabla = doc.add_table(rows=1, cols=4)
+    hdr = tabla.rows[0].cells
+    hdr[0].text = "Recurso"
+    hdr[1].text = "Métrica principal (Mínimo – Máximo)"
+    hdr[2].text = "Métrica secundaria (Mínimo – Máximo)"
+    hdr[3].text = "Detalle del rendimiento"
+    for fila in filas:
+        row = tabla.add_row().cells
+        row[0].text = fila["recurso"]
+        row[1].text = fila["principal"]
+        row[2].text = fila["secundaria"]
+        row[3].text = fila["detalle"]
+    _asignar_bordes_tabla(tabla)
+
+
 def _traducir(texto: str) -> str:
     if not texto:
         return ""
@@ -171,12 +226,10 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
     _add_paragraph(doc, f"Generado: {datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')} por {usuario_nombre}")
 
     _add_heading(doc, "PERFORMANCE DE COMPONENTES", 1)
-    tabla = doc.add_table(rows=1, cols=4)
-    hdr = tabla.rows[0].cells
-    hdr[0].text = "Recurso"
-    hdr[1].text = "Métrica principal (Mínimo – Máximo)"
-    hdr[2].text = "Métrica secundaria (Mínimo – Máximo)"
-    hdr[3].text = "Detalle del rendimiento"
+    filas_vm = []
+    filas_asp = []
+    filas_db = []
+    filas_otros = []
 
     for r in resultados_por_recurso:
         tipo = _tipo_recurso(r.get("tipo", ""))
@@ -184,13 +237,29 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
         metricas_tipo = _metricas_por_tipo(tipo, metricas)
         principal = metricas_tipo[0][1] if metricas_tipo else None
         secundaria = metricas_tipo[1][1] if len(metricas_tipo) > 1 else None
-        row = tabla.add_row().cells
-        row[0].text = f"{_label_tipo(tipo)} - {r.get('nombre', '')}"
-        row[1].text = _fmt_rango(principal)
-        row[2].text = _fmt_rango(secundaria) if secundaria else "No aplica"
-        row[3].text = _descripcion_rendimiento(principal, secundaria)
+        fila = {
+            "recurso": r.get("nombre", ""),
+            "principal": _fmt_rango(principal),
+            "secundaria": _fmt_rango(secundaria) if secundaria else "No aplica",
+            "detalle": _descripcion_rendimiento(principal, secundaria),
+        }
+        if tipo == "VM":
+            filas_vm.append(fila)
+        elif tipo == "ASP":
+            filas_asp.append(fila)
+        elif tipo == "DB":
+            filas_db.append(fila)
+        else:
+            filas_otros.append(fila)
 
-    _asignar_bordes_tabla(tabla)
+    if filas_vm:
+        _agregar_tabla_tipo(doc, "Máquinas Virtuales", filas_vm)
+    if filas_asp:
+        _agregar_tabla_tipo(doc, "App Service Plans", filas_asp)
+    if filas_db:
+        _agregar_tabla_tipo(doc, "Bases de Datos SQL", filas_db)
+    if filas_otros:
+        _agregar_tabla_tipo(doc, "Otros Recursos", filas_otros)
 
     for r in resultados_por_recurso:
         tipo = _tipo_recurso(r.get("tipo", ""))
