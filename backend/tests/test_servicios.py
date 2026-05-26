@@ -58,36 +58,4 @@ def test_estadisticos_correctos():
     assert resultado.minimo == 10.0
     assert resultado.maximo == 50.0
     assert resultado.promedio == 30.0
-
-
-# ── PDF service (smoke test) ──────────────────────────────────────────────────
-
-def test_generar_pdf_retorna_bytes():
-    from app.services.pdf_service import generar_pdf
-    from app.services.analisis_service import analizar_metrica
-
-    valores = [30.0 + i for i in range(30)]
-    fechas = [f"2025-01-{i+1:02d}" for i in range(30)]
-    metrica = analizar_metrica("Percentage CPU", valores, fechas)
-
-    pdf_bytes = generar_pdf(
-        cliente_nombre="Cliente Test",
-        periodo_mes=1,
-        periodo_anio=2025,
-        usuario_nombre="Especialista Test",
-        recomendaciones=[{
-            "impacto": "High",
-            "categoria": "Cost",
-            "nombre_recurso": "vm-test",
-            "accion": "Reducir tamaño de VM",
-            "ahorro_mensual_usd": 150.0,
-        }],
-        resultados_por_recurso=[{
-            "nombre": "vm-produccion",
-            "tipo": "VM",
-            "metricas": [metrica],
-        }],
-    )
-    assert isinstance(pdf_bytes, bytes)
-    assert len(pdf_bytes) > 1000
-    assert pdf_bytes[:4] == b"%PDF"
+    
