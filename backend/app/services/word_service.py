@@ -53,27 +53,28 @@ def _asignar_bordes_tabla(table):
         borders.append(elem)
     tblPr.append(borders)
 
-
-def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
+def _grafico_bytes(
+    resultado: ResultadoMetrica,
+    tipo_recurso: str
+) -> io.BytesIO:
 
     valores = resultado.valores or []
 
-    fig = plt.figure(figsize=(8.6, 4.8), dpi=150)
+    fig = plt.figure(figsize=(8.4, 4.1), dpi=150)
     fig.patch.set_facecolor("white")
 
     gs = GridSpec(
-        4,
+        3,
         1,
-        height_ratios=[0.16, 0.16, 0.56, 0.12],
+        height_ratios=[0.14, 0.72, 0.14],
         hspace=0
     )
 
-    ax_pill = fig.add_subplot(gs[0])
-    ax_toolbar = fig.add_subplot(gs[1])
-    ax_chart = fig.add_subplot(gs[2])
-    ax_legend = fig.add_subplot(gs[3])
+    ax_header = fig.add_subplot(gs[0])
+    ax_chart = fig.add_subplot(gs[1])
+    ax_legend = fig.add_subplot(gs[2])
 
-    for ax in [ax_pill, ax_toolbar, ax_legend]:
+    for ax in [ax_header, ax_legend]:
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_xlim(0, 1)
@@ -90,147 +91,71 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
         0.98,
         transform=fig.transFigure,
         fill=False,
-        linewidth=0.8,
-        edgecolor="#d0d0d0"
+        linewidth=0.7,
+        edgecolor="#d8d8d8"
     )
 
     fig.patches.append(border)
 
     # =========================================================
-    # PILL BAR
+    # HEADER
     # =========================================================
 
-    ax_pill.add_patch(
+    ax_header.add_patch(
         Rectangle(
             (0, 0),
             1,
             1,
             facecolor="#ffffff",
-            edgecolor="#e6e6e6",
+            edgecolor="#eaeaea",
             linewidth=0.6
         )
     )
 
-    pill = FancyBboxPatch(
-        (0.02, 0.22),
-        0.46,
-        0.56,
-        boxstyle="round,pad=0.01,rounding_size=0.02",
-        linewidth=0.6,
-        edgecolor="#d6d6d6",
-        facecolor="#f7f7f7"
-    )
+    # =========================================================
+    # ICONO DESDE BACKEND
+    # =========================================================
 
-    ax_pill.add_patch(pill)
+    BASE_ICONOS = Path("assets/azure_icons")
 
-    # Azure purple icon
-    icon_x = 0.035
-    icon_y = 0.37
-    size = 0.015
+    mapa_iconos = {
+        "VM": "virtual-machine.png",
+        "DB": "sql-database.png",
+        "ASP": "app-service-plans.png",
+    }
 
-    purple = "#8b5cf6"
+    icono = mapa_iconos.get(tipo_recurso.upper(), "default.png")
 
-    for dx, dy in [
-        (0, 0.12),
-        (0.02, 0.12),
-        (-0.01, 0),
-        (0.01, 0),
-        (0.03, 0),
-        (0, -0.12),
-        (0.02, -0.12),
-    ]:
-        ax_pill.add_patch(
-            Rectangle(
-                (icon_x + dx, icon_y + dy),
-                size,
-                size,
-                facecolor=purple,
-                edgecolor=purple
-            )
+    ruta_icono = BASE_ICONOS / icono
+
+    if ruta_icono.exists():
+
+        img = mpimg.imread(ruta_icono)
+
+        imagebox = OffsetImage(img, zoom=0.18)
+
+        ab = AnnotationBbox(
+            imagebox,
+            (0.035, 0.5),
+            frameon=False,
+            xycoords=ax_header.transAxes
         )
 
-    titulo = resultado.nombre[:42]
-    if len(resultado.nombre) > 42:
+        ax_header.add_artist(ab)
+
+    titulo = resultado.nombre[:70]
+
+    if len(resultado.nombre) > 70:
         titulo += "..."
 
-    ax_pill.text(
-        0.08,
+    ax_header.text(
+        0.075,
         0.5,
         titulo,
         fontsize=8,
         va="center",
         color="#222222"
     )
-
-    ax_pill.text(
-        0.455,
-        0.5,
-        "✕",
-        fontsize=9,
-        va="center",
-        ha="center",
-        color="#666666"
-    )
-
-    # =========================================================
-    # TOOLBAR
-    # =========================================================
-
-    ax_toolbar.add_patch(
-        Rectangle(
-            (0, 0),
-            1,
-            1,
-            facecolor="#ffffff",
-            edgecolor="#e6e6e6",
-            linewidth=0.6
-        )
-    )
-
-    def draw_button(ax, x, text, width, primary=False):
-        bg = "#ffffff"
-        edge = "#cfcfcf"
-        txt = "#333333"
-
-        if primary:
-            edge = "#0078d4"
-            txt = "#0078d4"
-
-        btn = FancyBboxPatch(
-            (x, 0.22),
-            width,
-            0.56,
-            boxstyle="round,pad=0.01,rounding_size=0.01",
-            linewidth=0.6,
-            edgecolor=edge,
-            facecolor=bg
-        )
-
-        ax.add_patch(btn)
-
-        ax.text(
-            x + 0.015,
-            0.5,
-            "⊞",
-            fontsize=8,
-            va="center",
-            color=txt
-        )
-
-        ax.text(
-            x + 0.04,
-            0.5,
-            text,
-            fontsize=7.5,
-            va="center",
-            color=txt
-        )
-
-    draw_button(ax_toolbar, 0.02, "Add metric", 0.16, primary=True)
-    draw_button(ax_toolbar, 0.21, "Line chart", 0.14)
-    draw_button(ax_toolbar, 0.37, "Drill into Logs", 0.18)
-    draw_button(ax_toolbar, 0.58, "New alert rule", 0.18)
-    draw_button(ax_toolbar, 0.79, "Save to dashboard", 0.18)
 
     # =========================================================
     # CHART
@@ -246,38 +171,53 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
 
     valores_np = np.array(valores, dtype=float)
 
-    # Segmentos válidos
     solid_y = np.where(np.isnan(valores_np), np.nan, valores_np)
 
-    # Segmentos faltantes
     if np.all(np.isnan(valores_np)):
         missing = np.zeros_like(valores_np)
     else:
         mean_val = np.nanmean(valores_np)
         missing = np.where(np.isnan(valores_np), mean_val, np.nan)
 
+    # línea principal
     ax_chart.plot(
         x,
         solid_y,
         color="#4f63c8",
-        linewidth=1.5,
-        solid_capstyle="round"
+        linewidth=1.6,
+        solid_capstyle="round",
+        zorder=3
     )
 
+    # segmentos faltantes
     ax_chart.plot(
         x,
         missing,
         color="#4f63c8",
-        linewidth=1.5,
-        linestyle=(0, (4, 4))
+        linewidth=1.4,
+        linestyle=(0, (4, 4)),
+        alpha=0.7,
+        zorder=2
     )
 
+    # área suave
+    if not np.all(np.isnan(solid_y)):
+        ax_chart.fill_between(
+            x,
+            solid_y,
+            alpha=0.06,
+            color="#4f63c8",
+            zorder=1
+        )
+
+    # grid
     ax_chart.grid(
         axis="y",
-        color=(0, 0, 0, 0.07),
+        color=(0, 0, 0, 0.06),
         linewidth=0.6
     )
 
+    # estilos
     ax_chart.tick_params(
         axis="x",
         labelsize=7,
@@ -296,9 +236,14 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
     ax_chart.spines["left"].set_color("#dddddd")
     ax_chart.spines["bottom"].set_color("#dddddd")
 
-    ax_chart.set_ylabel("%", fontsize=8, color="#666666")
+    ax_chart.set_ylabel(
+        "%",
+        fontsize=8,
+        color="#666666"
+    )
 
     if len(valores_np) > 0:
+
         vmax = np.nanmax(valores_np)
 
         if np.isnan(vmax) or vmax <= 0:
@@ -308,58 +253,7 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
 
     ax_chart.set_xlim(0, max(len(x) - 1, 1))
 
-    # =========================================================
-    # BOTONES LATERALES
-    # =========================================================
-
-    left_btn = FancyBboxPatch(
-        (-0.065, 0.42),
-        0.04,
-        0.18,
-        transform=ax_chart.transAxes,
-        boxstyle="round,pad=0.01,rounding_size=0.01",
-        linewidth=0.6,
-        edgecolor="#d9d9d9",
-        facecolor="#f8f8f8",
-        clip_on=False
-    )
-
-    right_btn = FancyBboxPatch(
-        (1.025, 0.42),
-        0.04,
-        0.18,
-        transform=ax_chart.transAxes,
-        boxstyle="round,pad=0.01,rounding_size=0.01",
-        linewidth=0.6,
-        edgecolor="#d9d9d9",
-        facecolor="#f8f8f8",
-        clip_on=False
-    )
-
-    ax_chart.add_patch(left_btn)
-    ax_chart.add_patch(right_btn)
-
-    ax_chart.text(
-        -0.045,
-        0.51,
-        "‹",
-        transform=ax_chart.transAxes,
-        ha="center",
-        va="center",
-        fontsize=11,
-        color="#777777"
-    )
-
-    ax_chart.text(
-        1.045,
-        0.51,
-        "›",
-        transform=ax_chart.transAxes,
-        ha="center",
-        va="center",
-        fontsize=11,
-        color="#777777"
-    )
+    ax_chart.margins(x=0)
 
     # =========================================================
     # LEYENDA
@@ -371,7 +265,7 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
             1,
             1,
             facecolor="#ffffff",
-            edgecolor="#e6e6e6",
+            edgecolor="#eaeaea",
             linewidth=0.6
         )
     )
@@ -395,13 +289,13 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
         0.05,
         0.5,
         resultado.nombre,
-        fontsize=7.5,
+        fontsize=7.4,
         va="center",
         color="#555555"
     )
 
     ax_legend.text(
-        0.96,
+        0.965,
         0.5,
         f"{promedio:.4f}%",
         fontsize=8,
@@ -430,7 +324,6 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
     buf.seek(0)
 
     return buf
-
 
 def _descripcion_rendimiento(cpu: ResultadoMetrica | None, memoria: ResultadoMetrica | None) -> str:
     if not cpu and not memoria:
@@ -599,7 +492,7 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
             if not metrica:
                 continue
             _add_heading(doc, titulo_metrica, 3)
-            doc.add_picture(_grafico_bytes(metrica), width=Inches(6.2))
+            doc.add_picture(_grafico_bytes(metrica, tipo), width=Inches(6.2))
 
     _add_heading(doc, "RECOMENDACIONES Y SUGERENCIAS", 1)
     recs = _consolidar_recomendaciones(recomendaciones)
