@@ -1,6 +1,8 @@
 import httpx
 from functools import lru_cache
-from app.core.config import settings  # ajusta al import de tu config
+from app.config import get_settings
+
+settings = get_settings()
 
 def _is_spanish(text: str) -> bool:
     markers = ("ó", "á", "é", "í", "ú", "ñ", "ción", "ización", "ú")

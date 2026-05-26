@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # JWT / JWKS
     jwks_uri: str = ""  # Auto-built from tenant_id
 
+    # Azure Translator
+    azure_translator_key: str
+    azure_translator_endpoint: str
+    azure_translator_region: str
+
     # CORS
     allowed_origins: list[str] = ["https://proud-pond-071d4800f.7.azurestaticapps.net"]
 
