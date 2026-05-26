@@ -274,8 +274,8 @@ def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
 
     ax_chart.grid(
         axis="y",
-        color="rgba(0,0,0,0.07)",
-        alpha=0.15
+        color=(0, 0, 0, 0.07),
+        linewidth=0.6
     )
 
     ax_chart.tick_params(
