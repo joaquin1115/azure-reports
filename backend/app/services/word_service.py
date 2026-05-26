@@ -52,164 +52,383 @@ def _asignar_bordes_tabla(table):
 
 
 def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
-    fig = plt.figure(figsize=(8.2, 3.6), dpi=140)
-    fig.patch.set_facecolor("white")
-
-    # Outer Azure-like container
-    outer = patches.Rectangle(
-        (0.02, 0.03),
-        0.96,
-        0.94,
-        transform=fig.transFigure,
-        linewidth=1.0,
-        edgecolor="#000000",
-        facecolor="white",
-        zorder=0
-    )
-    fig.patches.append(outer)
-
-    # Pill bar
-    fig.patches.append(
-        patches.Rectangle(
-            (0.02, 0.86),
-            0.96,
-            0.11,
-            transform=fig.transFigure,
-            linewidth=0,
-            facecolor="#f8f8f8",
-            zorder=0
-        )
-    )
-
-    # Toolbar
-    fig.patches.append(
-        patches.Rectangle(
-            (0.02, 0.75),
-            0.96,
-            0.11,
-            transform=fig.transFigure,
-            linewidth=0,
-            facecolor="#fbfbfb",
-            zorder=0
-        )
-    )
-
-    # Legend bar
-    fig.patches.append(
-        patches.Rectangle(
-            (0.02, 0.03),
-            0.96,
-            0.10,
-            transform=fig.transFigure,
-            linewidth=0,
-            facecolor="#fafafa",
-            zorder=0
-        )
-    )
-
-    # Chart area positioned between toolbar and legend
-    ax = fig.add_axes([0.08, 0.18, 0.84, 0.53], zorder=5)
+    from matplotlib.gridspec import GridSpec
+    from matplotlib.patches import Rectangle, FancyBboxPatch, Circle
+    import numpy as np
 
     valores = resultado.valores or []
-    all_zero_or_empty = (not valores) or all((v or 0) == 0 for v in valores)
 
-    linestyle = "--" if all_zero_or_empty else "-"
+    fig = plt.figure(figsize=(8.6, 4.8), dpi=150)
+    fig.patch.set_facecolor("white")
 
-    x = list(range(len(valores))) if valores else [0, 1]
-    y = valores if valores else [0, 0]
-
-    ax.set_facecolor("white")
-
-    ax.plot(
-        x,
-        y,
-        color="#4f63c8",
-        linewidth=1.8,
-        linestyle=linestyle,
-        zorder=3
+    gs = GridSpec(
+        4,
+        1,
+        height_ratios=[0.16, 0.16, 0.56, 0.12],
+        hspace=0
     )
 
-    if not all_zero_or_empty:
-        ax.fill_between(
-            x,
-            y,
-            color="#4f63c8",
-            alpha=0.08,
-            zorder=2
+    ax_pill = fig.add_subplot(gs[0])
+    ax_toolbar = fig.add_subplot(gs[1])
+    ax_chart = fig.add_subplot(gs[2])
+    ax_legend = fig.add_subplot(gs[3])
+
+    for ax in [ax_pill, ax_toolbar, ax_legend]:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+
+    # =========================================================
+    # CONTENEDOR EXTERIOR
+    # =========================================================
+
+    border = Rectangle(
+        (0.01, 0.01),
+        0.98,
+        0.98,
+        transform=fig.transFigure,
+        fill=False,
+        linewidth=0.8,
+        edgecolor="#d0d0d0"
+    )
+
+    fig.patches.append(border)
+
+    # =========================================================
+    # PILL BAR
+    # =========================================================
+
+    ax_pill.add_patch(
+        Rectangle(
+            (0, 0),
+            1,
+            1,
+            facecolor="#ffffff",
+            edgecolor="#e6e6e6",
+            linewidth=0.6
+        )
+    )
+
+    pill = FancyBboxPatch(
+        (0.02, 0.22),
+        0.46,
+        0.56,
+        boxstyle="round,pad=0.01,rounding_size=0.02",
+        linewidth=0.6,
+        edgecolor="#d6d6d6",
+        facecolor="#f7f7f7"
+    )
+
+    ax_pill.add_patch(pill)
+
+    # Azure purple icon
+    icon_x = 0.035
+    icon_y = 0.37
+    size = 0.015
+
+    purple = "#8b5cf6"
+
+    for dx, dy in [
+        (0, 0.12),
+        (0.02, 0.12),
+        (-0.01, 0),
+        (0.01, 0),
+        (0.03, 0),
+        (0, -0.12),
+        (0.02, -0.12),
+    ]:
+        ax_pill.add_patch(
+            Rectangle(
+                (icon_x + dx, icon_y + dy),
+                size,
+                size,
+                facecolor=purple,
+                edgecolor=purple
+            )
         )
 
-    ax.set_title(resultado.nombre, fontsize=9, loc="left", pad=6)
-    ax.set_ylabel("%", fontsize=8)
-
-    ax.grid(
-        axis="y",
-        linestyle="-",
-        alpha=0.15,
-        color="#000000"
-    )
-
-    ax.tick_params(labelsize=7, colors="#666666")
-
-    if y:
-        y_max = max(y)
-
-        if y_max <= 0:
-            ax.set_ylim(0, 1)
-        else:
-            ax.set_ylim(0, y_max * 1.2)
-
-    ax.set_xlim(
-        min(x),
-        max(x) if max(x) > min(x) else min(x) + 1
-    )
-
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(1.0)
-        spine.set_edgecolor("black")
-
-    # Header / toolbar / legend text decorations
-    titulo = resultado.nombre[:46]
-    if len(resultado.nombre) > 46:
+    titulo = resultado.nombre[:42]
+    if len(resultado.nombre) > 42:
         titulo += "..."
 
-    fig.text(
-        0.05,
-        0.905,
+    ax_pill.text(
+        0.08,
+        0.5,
         titulo,
         fontsize=8,
-        color="#222222",
-        zorder=10
+        va="center",
+        color="#222222"
     )
 
-    fig.text(
+    ax_pill.text(
+        0.455,
+        0.5,
+        "✕",
+        fontsize=9,
+        va="center",
+        ha="center",
+        color="#666666"
+    )
+
+    # =========================================================
+    # TOOLBAR
+    # =========================================================
+
+    ax_toolbar.add_patch(
+        Rectangle(
+            (0, 0),
+            1,
+            1,
+            facecolor="#ffffff",
+            edgecolor="#e6e6e6",
+            linewidth=0.6
+        )
+    )
+
+    def draw_button(ax, x, text, width, primary=False):
+        bg = "#ffffff"
+        edge = "#cfcfcf"
+        txt = "#333333"
+
+        if primary:
+            edge = "#0078d4"
+            txt = "#0078d4"
+
+        btn = FancyBboxPatch(
+            (x, 0.22),
+            width,
+            0.56,
+            boxstyle="round,pad=0.01,rounding_size=0.01",
+            linewidth=0.6,
+            edgecolor=edge,
+            facecolor=bg
+        )
+
+        ax.add_patch(btn)
+
+        ax.text(
+            x + 0.015,
+            0.5,
+            "⊞",
+            fontsize=8,
+            va="center",
+            color=txt
+        )
+
+        ax.text(
+            x + 0.04,
+            0.5,
+            text,
+            fontsize=7.5,
+            va="center",
+            color=txt
+        )
+
+    draw_button(ax_toolbar, 0.02, "Add metric", 0.16, primary=True)
+    draw_button(ax_toolbar, 0.21, "Line chart", 0.14)
+    draw_button(ax_toolbar, 0.37, "Drill into Logs", 0.18)
+    draw_button(ax_toolbar, 0.58, "New alert rule", 0.18)
+    draw_button(ax_toolbar, 0.79, "Save to dashboard", 0.18)
+
+    # =========================================================
+    # CHART
+    # =========================================================
+
+    ax_chart.set_facecolor("white")
+
+    x = np.arange(len(valores))
+
+    if not valores:
+        valores = [0, 0]
+        x = np.arange(len(valores))
+
+    valores_np = np.array(valores, dtype=float)
+
+    # Segmentos válidos
+    solid_y = np.where(np.isnan(valores_np), np.nan, valores_np)
+
+    # Segmentos faltantes
+    if np.all(np.isnan(valores_np)):
+        missing = np.zeros_like(valores_np)
+    else:
+        mean_val = np.nanmean(valores_np)
+        missing = np.where(np.isnan(valores_np), mean_val, np.nan)
+
+    ax_chart.plot(
+        x,
+        solid_y,
+        color="#4f63c8",
+        linewidth=1.5,
+        solid_capstyle="round"
+    )
+
+    ax_chart.plot(
+        x,
+        missing,
+        color="#4f63c8",
+        linewidth=1.5,
+        linestyle=(0, (4, 4))
+    )
+
+    ax_chart.grid(
+        axis="y",
+        color="rgba(0,0,0,0.07)",
+        alpha=0.15
+    )
+
+    ax_chart.tick_params(
+        axis="x",
+        labelsize=7,
+        colors="#666666"
+    )
+
+    ax_chart.tick_params(
+        axis="y",
+        labelsize=7,
+        colors="#666666"
+    )
+
+    ax_chart.spines["top"].set_visible(False)
+    ax_chart.spines["right"].set_visible(False)
+
+    ax_chart.spines["left"].set_color("#dddddd")
+    ax_chart.spines["bottom"].set_color("#dddddd")
+
+    ax_chart.set_ylabel("%", fontsize=8, color="#666666")
+
+    if len(valores_np) > 0:
+        vmax = np.nanmax(valores_np)
+
+        if np.isnan(vmax) or vmax <= 0:
+            vmax = 1
+
+        ax_chart.set_ylim(0, vmax * 1.2)
+
+    ax_chart.set_xlim(0, max(len(x) - 1, 1))
+
+    # =========================================================
+    # BOTONES LATERALES
+    # =========================================================
+
+    left_btn = FancyBboxPatch(
+        (-0.065, 0.42),
+        0.04,
+        0.18,
+        transform=ax_chart.transAxes,
+        boxstyle="round,pad=0.01,rounding_size=0.01",
+        linewidth=0.6,
+        edgecolor="#d9d9d9",
+        facecolor="#f8f8f8",
+        clip_on=False
+    )
+
+    right_btn = FancyBboxPatch(
+        (1.025, 0.42),
+        0.04,
+        0.18,
+        transform=ax_chart.transAxes,
+        boxstyle="round,pad=0.01,rounding_size=0.01",
+        linewidth=0.6,
+        edgecolor="#d9d9d9",
+        facecolor="#f8f8f8",
+        clip_on=False
+    )
+
+    ax_chart.add_patch(left_btn)
+    ax_chart.add_patch(right_btn)
+
+    ax_chart.text(
+        -0.045,
+        0.51,
+        "‹",
+        transform=ax_chart.transAxes,
+        ha="center",
+        va="center",
+        fontsize=11,
+        color="#777777"
+    )
+
+    ax_chart.text(
+        1.045,
+        0.51,
+        "›",
+        transform=ax_chart.transAxes,
+        ha="center",
+        va="center",
+        fontsize=11,
+        color="#777777"
+    )
+
+    # =========================================================
+    # LEYENDA
+    # =========================================================
+
+    ax_legend.add_patch(
+        Rectangle(
+            (0, 0),
+            1,
+            1,
+            facecolor="#ffffff",
+            edgecolor="#e6e6e6",
+            linewidth=0.6
+        )
+    )
+
+    ax_legend.add_patch(
+        Rectangle(
+            (0.03, 0.42),
+            0.012,
+            0.18,
+            facecolor="#4f63c8",
+            edgecolor="#4f63c8"
+        )
+    )
+
+    promedio = (
+        sum(v for v in valores if v is not None) / len(valores)
+        if valores else 0
+    )
+
+    ax_legend.text(
         0.05,
-        0.79,
-        "Add metric   |   Line chart   |   Drill into logs",
+        0.5,
+        resultado.nombre,
         fontsize=7.5,
-        color="#444444",
-        zorder=10
+        va="center",
+        color="#555555"
     )
 
-    promedio = sum(valores) / len(valores) if valores else 0
-
-    fig.text(0.06, 0.07, "■", fontsize=10, color="#4f63c8", zorder=10)
-    fig.text(0.08, 0.07, resultado.nombre, fontsize=7.5, color="#555555", zorder=10)
-
-    fig.text(
-        0.87,
-        0.07,
+    ax_legend.text(
+        0.96,
+        0.5,
         f"{promedio:.4f}%",
         fontsize=8,
-        color="#222222",
+        va="center",
         ha="right",
-        zorder=10
+        color="#222222",
+        fontweight="bold"
     )
 
+    # =========================================================
+    # EXPORT
+    # =========================================================
+
     buf = io.BytesIO()
-    plt.savefig(buf, format="png", dpi=140, bbox_inches="tight")
+
+    plt.savefig(
+        buf,
+        format="png",
+        dpi=150,
+        facecolor="white",
+        bbox_inches=None
+    )
+
     plt.close(fig)
+
     buf.seek(0)
+
     return buf
 
 
