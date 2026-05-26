@@ -135,7 +135,7 @@ def _grafico_bytes(
 
         img = mpimg.imread(ruta_icono)
 
-        imagebox = OffsetImage(img, zoom=0.08)
+        imagebox = OffsetImage(img, zoom=0.045)
 
         ab = AnnotationBbox(
             imagebox,
@@ -146,13 +146,20 @@ def _grafico_bytes(
 
         ax_header.add_artist(ab)
 
-    titulo = resultado.nombre[:70]
+    nombre_recurso = getattr(resultado, "recurso", None)
 
-    if len(resultado.nombre) > 70:
+    if nombre_recurso:
+        titulo = f"{resultado.nombre} - {nombre_recurso}"
+    else:
+        titulo = resultado.nombre
+
+    titulo = titulo[:85]
+
+    if len(titulo) > 85:
         titulo += "..."
 
     ax_header.text(
-        0.06,
+        0.048,
         0.5,
         titulo,
         fontsize=8,
@@ -216,8 +223,8 @@ def _grafico_bytes(
     # grid
     ax_chart.grid(
         axis="y",
-        color=(0, 0, 0, 0.035),
-        linewidth=0.4
+        color=(0, 0, 0, 0.018),
+        linewidth=0.3
     )
 
     # estilos
