@@ -272,7 +272,7 @@ export function GenerarReportePage() {
               showIcon
               action={
                 <Button size="small" type="primary" onClick={descargar}>
-                  Descargar PDF
+                  Descargar DOCX
                 </Button>
               }
               style={{ marginBottom: 16 }}
