@@ -135,7 +135,7 @@ def _grafico_bytes(
 
         img = mpimg.imread(ruta_icono)
 
-        imagebox = OffsetImage(img, zoom=0.18)
+        imagebox = OffsetImage(img, zoom=0.08)
 
         ab = AnnotationBbox(
             imagebox,
@@ -152,7 +152,7 @@ def _grafico_bytes(
         titulo += "..."
 
     ax_header.text(
-        0.075,
+        0.06,
         0.5,
         titulo,
         fontsize=8,
@@ -216,8 +216,8 @@ def _grafico_bytes(
     # grid
     ax_chart.grid(
         axis="y",
-        color=(0, 0, 0, 0.06),
-        linewidth=0.6
+        color=(0, 0, 0, 0.035),
+        linewidth=0.4
     )
 
     # estilos
