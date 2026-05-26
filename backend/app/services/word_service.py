@@ -135,7 +135,7 @@ def _grafico_bytes(
 
         img = mpimg.imread(ruta_icono)
 
-        imagebox = OffsetImage(img, zoom=0.045)
+        imagebox = OffsetImage(img, zoom=0.03)
 
         ab = AnnotationBbox(
             imagebox,
