@@ -25,11 +25,11 @@ async def traducir_textos(textos: list[str]) -> list[str]:
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{settings.AZURE_TRANSLATOR_ENDPOINT}/translate",
+            f"{settings.azure_translator_endpoint}/translate",
             params={"api-version": "3.0", "to": "es"},
             headers={
-                "Ocp-Apim-Subscription-Key": settings.AZURE_TRANSLATOR_KEY,
-                "Ocp-Apim-Subscription-Region": settings.AZURE_TRANSLATOR_REGION,
+                "Ocp-Apim-Subscription-Key": settings.azure_translator_key,
+                "Ocp-Apim-Subscription-Region": settings.azure_translator_region,
                 "Content-Type": "application/json",
             },
             json=body,
