@@ -12,6 +12,9 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle, FancyBboxPatch, Circle
+from pathlib import Path
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import matplotlib.image as mpimg
 import numpy as np
 
 from app.services.analisis_service import ResultadoMetrica
