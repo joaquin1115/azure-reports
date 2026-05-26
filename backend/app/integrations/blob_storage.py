@@ -7,6 +7,7 @@ from azure.storage.blob import (
 from datetime import datetime, timedelta, timezone
 from app.config import get_settings
 import uuid
+from urllib.parse import quote
 
 settings = get_settings()
 
@@ -65,8 +66,10 @@ async def generar_sas_url(
         + timedelta(hours=expiry_hours),
     )
 
+    blob_path_encoded = quote(nombre_blob, safe="/")
+
     return (
         f"https://{account_name}.blob.core.windows.net/"
         f"{settings.azure_storage_container}/"
-        f"{nombre_blob}?{sas_token}"
+        f"{blob_path_encoded}?{sas_token}"
     )
