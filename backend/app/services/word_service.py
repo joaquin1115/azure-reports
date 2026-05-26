@@ -10,6 +10,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Rectangle, FancyBboxPatch, Circle
+import numpy as np
 
 from app.services.analisis_service import ResultadoMetrica
 
@@ -52,9 +55,6 @@ def _asignar_bordes_tabla(table):
 
 
 def _grafico_bytes(resultado: ResultadoMetrica) -> io.BytesIO:
-    from matplotlib.gridspec import GridSpec
-    from matplotlib.patches import Rectangle, FancyBboxPatch, Circle
-    import numpy as np
 
     valores = resultado.valores or []
 
