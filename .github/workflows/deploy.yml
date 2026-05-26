@@ -81,9 +81,11 @@ jobs:
               { "name": "USE_MANAGED_IDENTITY", "value": "true", "slotSetting": false },
               { "name": "MANAGED_IDENTITY_CLIENT_ID", "value": "${{ secrets.MANAGED_IDENTITY_CLIENT_ID }}", "slotSetting": false },
               { "name": "AZURE_STORAGE_CONNECTION_STRING", "value": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}", "slotSetting": false },
-              { "name": "AZURE_STORAGE_CONTAINER", "value": "${{ secrets.AZURE_STORAGE_CONTAINER }}", "slotSetting": false }
+              { "name": "AZURE_STORAGE_CONTAINER", "value": "${{ secrets.AZURE_STORAGE_CONTAINER }}", "slotSetting": false },
+              { "name": "AZURE_TRANSLATOR_KEY", "value": "${{ secrets.AZURE_TRANSLATOR_KEY }}", "slotSetting": false },
+              { "name": "AZURE_TRANSLATOR_ENDPOINT", "value": "${{ secrets.AZURE_TRANSLATOR_ENDPOINT }}", "slotSetting": false },
+              { "name": "AZURE_TRANSLATOR_REGION", "value": "${{ secrets.AZURE_TRANSLATOR_REGION }}", "slotSetting": false }
             ]
-
   # ── Frontend: build + deploy ──────────────────────────────────────────────
   frontend:
     runs-on: ubuntu-latest

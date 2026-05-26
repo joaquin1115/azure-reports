@@ -1,6 +1,8 @@
 import httpx
 from app.models.models import GravedadEnum
 from app.integrations.azure_rm import _get_access_token
+from app.integrations.azure_translator import traducir_textos
+import asyncio
 
 GRAVEDAD_MAP = {
     GravedadEnum.alta: ["High"],
@@ -23,7 +25,13 @@ async def obtener_recomendaciones(
     )
     recomendaciones = []
     async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+        resp = await client.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept-Language": "es",
+            },
+        )
         resp.raise_for_status()
         data = resp.json()
         for item in data.get("value", []):
@@ -31,7 +39,6 @@ async def obtener_recomendaciones(
             nivel = props.get("impact", "")
             if nivel in niveles:
                 ahorro_raw = props.get("extendedProperties", {}).get("savingsAmount")
-
                 try:
                     ahorro_mensual = float(ahorro_raw) if ahorro_raw is not None else 0
                 except (ValueError, TypeError):
@@ -47,4 +54,18 @@ async def obtener_recomendaciones(
                     "accion": props.get("shortDescription", {}).get("solution", ""),
                     "ahorro_mensual_usd": ahorro_mensual,
                 })
+
+    if recomendaciones:
+        descripciones = [r["descripcion"] for r in recomendaciones]
+        acciones = [r["accion"] for r in recomendaciones]
+
+        descripciones_es, acciones_es = await asyncio.gather(
+            traducir_textos(descripciones),
+            traducir_textos(acciones),
+        )
+
+        for rec, desc, acc in zip(recomendaciones, descripciones_es, acciones_es):
+            rec["descripcion"] = desc
+            rec["accion"] = acc
+
     return recomendaciones
