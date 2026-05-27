@@ -87,7 +87,21 @@ async def _ejecutar_generacion(
                 raise ValueError("El cliente no tiene tenants configurados")
             
             subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
-            
+
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "estructura_documento",
+                "mensaje": "Generando estructura del documento",
+            })
+
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "analisis_metricas",
+                "mensaje": "Analizando métricas de recursos",
+            })
+
             # --- Recomendaciones (tenant consolidado) ---
             recomendaciones = []
             for subscription_id in subscription_ids:
@@ -120,6 +134,13 @@ async def _ejecutar_generacion(
                     "tipo": recurso.tipo,
                     "metricas": metricas_analizadas,
                 })
+
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "redaccion_recomendaciones",
+                "mensaje": "Redactando recomendaciones",
+            })
 
             # --- Word ---
             word_bytes = generar_word(
