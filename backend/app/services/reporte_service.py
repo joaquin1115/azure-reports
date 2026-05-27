@@ -87,7 +87,7 @@ async def _ejecutar_generacion(
                 raise ValueError("El cliente no tiene tenants configurados")
             
             subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
-            
+
             # --- Recomendaciones (tenant consolidado) ---
             recomendaciones = []
             for subscription_id in subscription_ids:
@@ -98,6 +98,14 @@ async def _ejecutar_generacion(
                 recomendaciones.extend(recomendaciones_sub)
 
             # --- Métricas por recurso ---
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "analisis_metricas",
+                "estado_etapa": "iniciada",
+                "mensaje": "Análisis de métricas en progreso",
+            })
+
             resultados_por_recurso = []
             for recurso in recursos:
                 metricas_raw = await azure_rm.obtener_metricas_recurso(
@@ -121,7 +129,23 @@ async def _ejecutar_generacion(
                     "metricas": metricas_analizadas,
                 })
 
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "analisis_metricas",
+                "estado_etapa": "completada",
+                "mensaje": "Análisis de métricas completado",
+            })
+
             # --- Word ---
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "redaccion_recomendaciones",
+                "estado_etapa": "iniciada",
+                "mensaje": "Redacción de recomendaciones en progreso",
+            })
+
             word_bytes = generar_word(
                 cliente_nombre=cliente.nombre,
                 periodo_mes=config.periodo_mes,
@@ -130,6 +154,14 @@ async def _ejecutar_generacion(
                 recomendaciones=recomendaciones,
                 resultados_por_recurso=resultados_por_recurso,
             )
+
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "redaccion_recomendaciones",
+                "estado_etapa": "completada",
+                "mensaje": "Redacción de recomendaciones completada",
+            })
 
             # --- Upload to Blob ---
             nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.docx"
