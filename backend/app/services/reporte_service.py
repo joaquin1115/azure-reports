@@ -88,14 +88,6 @@ async def _ejecutar_generacion(
             
             subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
 
-            # --- Recomendaciones (tenant consolidado) ---
-            recomendaciones = []
-            for subscription_id in subscription_ids:
-                recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
-                    subscription_id=subscription_id,
-                    gravedad=config.gravedad,
-                )
-                recomendaciones.extend(recomendaciones_sub)
 
             # --- Métricas por recurso ---
             _notificar_sse(str(reporte_id), {
@@ -145,6 +137,15 @@ async def _ejecutar_generacion(
                 "estado_etapa": "iniciada",
                 "mensaje": "Redacción de recomendaciones en progreso",
             })
+
+            # --- Recomendaciones (tenant consolidado) ---
+            recomendaciones = []
+            for subscription_id in subscription_ids:
+                recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
+                    subscription_id=subscription_id,
+                    gravedad=config.gravedad,
+                )
+                recomendaciones.extend(recomendaciones_sub)
 
             word_bytes = generar_word(
                 cliente_nombre=cliente.nombre,
