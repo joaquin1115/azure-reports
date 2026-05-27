@@ -4,6 +4,7 @@ export type SSEEvento = {
   tiempo_seg?: number;
   mensaje?: string;
   etapa?: "analisis_metricas" | "redaccion_recomendaciones";
+  estado_etapa?: "iniciada" | "completada";
 };
 
 export function suscribirReporte(

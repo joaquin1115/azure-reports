@@ -30,6 +30,7 @@ export function GenerarReportePage() {
   const [reporteId, setReporteId] = useState<string>();
   const [tiempoGen, setTiempoGen] = useState<number>();
   const [etapasCompletadas, setEtapasCompletadas] = useState<string[]>([]);
+  const [etapaActual, setEtapaActual] = useState<string>();
 
   const { mostrar } = useNotifStore();
   const { instance, accounts } = useMsal();
@@ -71,6 +72,7 @@ export function GenerarReportePage() {
     setGenerando(true);
     setTiempoGen(undefined);
     setEtapasCompletadas([]);
+    setEtapaActual(undefined);
     try {
       // 1. Create or save configuration
       const configPayload = {
@@ -99,12 +101,18 @@ export function GenerarReportePage() {
       const token = await getToken();
       const unsub = suscribirReporte(rid, (evento) => {
         if (evento.evento === "progreso" && evento.etapa) {
-          setEtapasCompletadas((prev) => (
-            prev.includes(evento.etapa as string) ? prev : [...prev, evento.etapa as string]
-          ));
+          if (evento.estado_etapa === "iniciada") {
+            setEtapaActual(evento.etapa);
+          } else if (evento.estado_etapa === "completada") {
+            setEtapaActual((prev) => (prev === evento.etapa ? undefined : prev));
+            setEtapasCompletadas((prev) => (
+              prev.includes(evento.etapa as string) ? prev : [...prev, evento.etapa as string]
+            ));
+          }
         } else if (evento.evento === "completado") {
           setTiempoGen(evento.tiempo_seg);
           setGenerando(false);
+          setEtapaActual(undefined);
           mostrar(`✅ Reporte generado en ${evento.tiempo_seg?.toFixed(1)}s`, "success");
           unsub();
         } else if (evento.evento === "error") {
@@ -273,7 +281,7 @@ export function GenerarReportePage() {
                 <div style={{ marginTop: 6 }}>
                   {etapas.map((etapa) => (
                     <div key={etapa.key} style={{ marginBottom: 4 }}>
-                      {etapasCompletadas.includes(etapa.key) ? "✅" : "⏳"} {etapa.label}
+                      {etapasCompletadas.includes(etapa.key) ? "✅" : etapaActual === etapa.key ? "🔄" : "⏳"} {etapa.label}
                     </div>
                   ))}
                 </div>
