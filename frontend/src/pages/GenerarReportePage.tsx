@@ -128,7 +128,6 @@ export function GenerarReportePage() {
 
   const tipoColor: Record<string, string> = { VM: "#1987af", DB: "#7c3aed", ASP: "#d97706" };
   const etapas = [
-    { key: "estructura_documento", label: "Generación de la estructura del documento" },
     { key: "analisis_metricas", label: "Análisis de métricas" },
     { key: "redaccion_recomendaciones", label: "Redacción de recomendaciones" },
   ];

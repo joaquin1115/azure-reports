@@ -3,7 +3,7 @@ export type SSEEvento = {
   reporte_id?: string;
   tiempo_seg?: number;
   mensaje?: string;
-  etapa?: "estructura_documento" | "analisis_metricas" | "redaccion_recomendaciones";
+  etapa?: "analisis_metricas" | "redaccion_recomendaciones";
 };
 
 export function suscribirReporte(

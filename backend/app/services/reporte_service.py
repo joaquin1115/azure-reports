@@ -88,20 +88,6 @@ async def _ejecutar_generacion(
             
             subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
 
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "estructura_documento",
-                "mensaje": "Generando estructura del documento",
-            })
-
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "analisis_metricas",
-                "mensaje": "Analizando métricas de recursos",
-            })
-
             # --- Recomendaciones (tenant consolidado) ---
             recomendaciones = []
             for subscription_id in subscription_ids:
@@ -138,8 +124,8 @@ async def _ejecutar_generacion(
             _notificar_sse(str(reporte_id), {
                 "evento": "progreso",
                 "reporte_id": str(reporte_id),
-                "etapa": "redaccion_recomendaciones",
-                "mensaje": "Redactando recomendaciones",
+                "etapa": "analisis_metricas",
+                "mensaje": "Análisis de métricas completado",
             })
 
             # --- Word ---
@@ -151,6 +137,13 @@ async def _ejecutar_generacion(
                 recomendaciones=recomendaciones,
                 resultados_por_recurso=resultados_por_recurso,
             )
+
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "redaccion_recomendaciones",
+                "mensaje": "Redacción de recomendaciones completada",
+            })
 
             # --- Upload to Blob ---
             nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.docx"
