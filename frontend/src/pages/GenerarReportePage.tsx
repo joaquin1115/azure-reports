@@ -29,6 +29,7 @@ export function GenerarReportePage() {
   const [generando, setGenerando] = useState(false);
   const [reporteId, setReporteId] = useState<string>();
   const [tiempoGen, setTiempoGen] = useState<number>();
+  const [etapasCompletadas, setEtapasCompletadas] = useState<string[]>([]);
 
   const { mostrar } = useNotifStore();
   const { instance, accounts } = useMsal();
@@ -68,6 +69,8 @@ export function GenerarReportePage() {
 
   const iniciarGeneracion = async () => {
     setGenerando(true);
+    setTiempoGen(undefined);
+    setEtapasCompletadas([]);
     try {
       // 1. Create or save configuration
       const configPayload = {
@@ -95,7 +98,11 @@ export function GenerarReportePage() {
       // 3. Subscribe to SSE
       const token = await getToken();
       const unsub = suscribirReporte(rid, (evento) => {
-        if (evento.evento === "completado") {
+        if (evento.evento === "progreso" && evento.etapa) {
+          setEtapasCompletadas((prev) => (
+            prev.includes(evento.etapa as string) ? prev : [...prev, evento.etapa as string]
+          ));
+        } else if (evento.evento === "completado") {
           setTiempoGen(evento.tiempo_seg);
           setGenerando(false);
           mostrar(`✅ Reporte generado en ${evento.tiempo_seg?.toFixed(1)}s`, "success");
@@ -120,6 +127,10 @@ export function GenerarReportePage() {
   };
 
   const tipoColor: Record<string, string> = { VM: "#1987af", DB: "#7c3aed", ASP: "#d97706" };
+  const etapas = [
+    { key: "analisis_metricas", label: "Análisis de métricas" },
+    { key: "redaccion_recomendaciones", label: "Redacción de recomendaciones" },
+  ];
 
   return (
     <div>
@@ -258,7 +269,15 @@ export function GenerarReportePage() {
             <Alert
               type="info"
               message="Generando reporte..."
-              description="Esto puede tomar hasta 2 minutos. Recibirás una notificación cuando esté listo."
+              description={
+                <div style={{ marginTop: 6 }}>
+                  {etapas.map((etapa) => (
+                    <div key={etapa.key} style={{ marginBottom: 4 }}>
+                      {etapasCompletadas.includes(etapa.key) ? "✅" : "⏳"} {etapa.label}
+                    </div>
+                  ))}
+                </div>
+              }
               showIcon
               style={{ marginBottom: 16 }}
               icon={<Spin size="small" />}

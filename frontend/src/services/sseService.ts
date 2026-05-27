@@ -1,8 +1,9 @@
 export type SSEEvento = {
-  evento: "completado" | "error" | "ping";
+  evento: "progreso" | "completado" | "error" | "ping";
   reporte_id?: string;
   tiempo_seg?: number;
   mensaje?: string;
+  etapa?: "analisis_metricas" | "redaccion_recomendaciones";
 };
 
 export function suscribirReporte(
