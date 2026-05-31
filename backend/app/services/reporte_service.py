@@ -85,8 +85,6 @@ async def _ejecutar_generacion(
             tenant = tenants[0] if tenants else None
             if not tenant:
                 raise ValueError("El cliente no tiene tenants configurados")
-            
-            subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
 
 
             # --- Métricas por recurso ---
@@ -139,6 +137,7 @@ async def _ejecutar_generacion(
             })
 
             # --- Recomendaciones (tenant consolidado) ---
+            subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
             recomendaciones = []
             for subscription_id in subscription_ids:
                 recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
