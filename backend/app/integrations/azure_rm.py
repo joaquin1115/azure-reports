@@ -1,6 +1,5 @@
 import httpx
-from azure.identity.aio import ManagedIdentityCredential
-from azure.core.exceptions import ClientAuthenticationError
+from azure.identity.aio import ClientSecretCredential
 from app.config import get_settings
 from app.schemas.schemas import RecursoAzure
 from app.models.models import TipoRecursoEnum
@@ -23,21 +22,11 @@ METRICS_BY_TYPE = {
 
 
 async def _get_access_token() -> str:
-    configured_client_id = settings.managed_identity_client_id.strip()
-
-    if configured_client_id:
-        credential = ManagedIdentityCredential(client_id=configured_client_id)
-        try:
-            token = await credential.get_token("https://management.azure.com/.default")
-            return token.token
-        except ClientAuthenticationError as exc:
-            # Fallback to system-assigned MI when configured client id is invalid/not assigned.
-            if "No User Assigned or Delegated Managed Identity found" not in str(exc):
-                raise
-        finally:
-            await credential.close()
-
-    credential = ManagedIdentityCredential()
+    credential = ClientSecretCredential(
+        tenant_id=settings.azure_tenant_id,
+        client_id=settings.azure_client_id,
+        client_secret=settings.azure_client_secret,
+    )
     try:
         token = await credential.get_token("https://management.azure.com/.default")
         return token.token
@@ -46,7 +35,7 @@ async def _get_access_token() -> str:
 
 
 async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
-    """Lists subscription IDs visible by the managed identity for a given tenant."""
+    """Lists subscription IDs visible for the configured service principal tenant."""
     token = await _get_access_token()
     url = "https://management.azure.com/subscriptions?api-version=2020-01-01"
     subscription_ids: list[str] = []
@@ -183,13 +172,21 @@ async def obtener_metricas_recurso(
 
 async def validar_tenant(tenant_id_azure: str) -> bool:
     """Checks that a tenant is accessible via Azure RM."""
-    url = f"https://management.azure.com/tenants?api-version=2022-12-01"
+    token = await _get_access_token()
+    url = "https://management.azure.com/tenants?api-version=2022-12-01"
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 url,
-                headers={"Authorization": f"Bearer placeholder"},
+                headers={"Authorization": f"Bearer {token}"},
             )
-        return resp.status_code != 404
+        if resp.status_code == 404:
+            return False
+        resp.raise_for_status()
+        data = resp.json()
+        return any(
+            item.get("tenantId") == tenant_id_azure
+            for item in data.get("value", [])
+        )
     except Exception:
         return False

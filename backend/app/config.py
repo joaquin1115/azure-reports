@@ -10,11 +10,13 @@ class Settings(BaseSettings):
     # Database
     database_url: str
 
-    # Azure Entra ID (API auth)
+    # Azure Entra ID (API auth and Azure Resource Manager service principal)
     azure_tenant_id: str
     azure_client_id: str  # App registration client ID
+    azure_client_secret: str  # App registration client secret for Azure Resource Manager
 
-    use_managed_identity: bool = True
+    # Deprecated: kept so existing .env files with managed identity values keep loading.
+    use_managed_identity: bool = False
     managed_identity_client_id: str = ""
 
     # Azure Blob Storage
