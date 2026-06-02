@@ -35,6 +35,7 @@ jobs:
           DATABASE_URL: sqlite+aiosqlite:///./test.db
           AZURE_TENANT_ID: test
           AZURE_CLIENT_ID: test
+          AZURE_CLIENT_SECRET: test
           AZURE_STORAGE_CONNECTION_STRING: ""
           AZURE_STORAGE_CONTAINER: reportes
 
@@ -78,8 +79,7 @@ jobs:
               { "name": "DATABASE_URL", "value": "${{ secrets.DATABASE_URL }}", "slotSetting": false },
               { "name": "AZURE_TENANT_ID", "value": "${{ secrets.AZURE_TENANT_ID }}", "slotSetting": false },
               { "name": "AZURE_CLIENT_ID", "value": "${{ secrets.AZURE_CLIENT_ID }}", "slotSetting": false },
-              { "name": "USE_MANAGED_IDENTITY", "value": "true", "slotSetting": false },
-              { "name": "MANAGED_IDENTITY_CLIENT_ID", "value": "${{ secrets.MANAGED_IDENTITY_CLIENT_ID }}", "slotSetting": false },
+              { "name": "AZURE_CLIENT_SECRET", "value": "${{ secrets.AZURE_CLIENT_SECRET }}", "slotSetting": false },
               { "name": "AZURE_STORAGE_CONNECTION_STRING", "value": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}", "slotSetting": false },
               { "name": "AZURE_STORAGE_CONTAINER", "value": "${{ secrets.AZURE_STORAGE_CONTAINER }}", "slotSetting": false },
               { "name": "AZURE_TRANSLATOR_KEY", "value": "${{ secrets.AZURE_TRANSLATOR_KEY }}", "slotSetting": false },
