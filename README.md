@@ -107,6 +107,7 @@ pytest tests/ -v
 | `DATABASE_URL` | URL de conexión PostgreSQL async |
 | `AZURE_TENANT_ID` | Tenant ID del App Registration |
 | `AZURE_CLIENT_ID` | Client ID del App Registration |
+| `AZURE_CLIENT_SECRET` | Client secret del App Registration usado para Azure Resource Manager |
 | `AZURE_STORAGE_CONNECTION_STRING` | Connection string de Azure Blob Storage |
 | `AZURE_STORAGE_CONTAINER` | Nombre del contenedor de PDFs |
 | `ALLOWED_ORIGINS` | Lista JSON de orígenes CORS permitidos |
