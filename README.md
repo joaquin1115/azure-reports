@@ -139,6 +139,16 @@ El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) realiza automáti
 | `ACR_PASSWORD` | Contraseña del ACR |
 | `AZURE_WEBAPP_NAME` | Nombre del App Service |
 | `AZURE_WEBAPP_PUBLISH_PROFILE` | Publish profile del App Service |
+| `AZURE_CREDENTIALS` | Credenciales JSON para actualizar App Settings del App Service |
+| `DATABASE_URL` | URL de conexión PostgreSQL async para producción |
+| `AZURE_TENANT_ID` | Tenant ID del App Registration usado por backend/API |
+| `AZURE_CLIENT_ID` | Client ID del App Registration usado por backend/API |
+| `AZURE_CLIENT_SECRET` | Client secret del App Registration usado por Azure Resource Manager |
+| `AZURE_STORAGE_CONNECTION_STRING` | Connection string de Azure Blob Storage |
+| `AZURE_STORAGE_CONTAINER` | Nombre del contenedor de PDFs |
+| `AZURE_TRANSLATOR_KEY` | Key de Azure Translator |
+| `AZURE_TRANSLATOR_ENDPOINT` | Endpoint de Azure Translator |
+| `AZURE_TRANSLATOR_REGION` | Región de Azure Translator |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | Token de Azure Static Web Apps |
 | `VITE_AZURE_CLIENT_ID` | Client ID para el build del frontend |
 | `VITE_AZURE_TENANT_ID` | Tenant ID para el build del frontend |
