@@ -2,18 +2,62 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.auth.dependencies import require_admin, require_especialista
-from app.models.models import Cliente, Tenant, Reporte
-from app.schemas.schemas import ClienteCreate, ClienteUpdate, ClienteOut, RecursoAzure
+from app.models.models import Cliente, Tenant, Reporte, Configuracion
+from app.schemas.schemas import (
+    ClienteCreate,
+    ClienteUpdate,
+    ClienteOut,
+    RecursoAzure,
+    TenantCreate,
+)
 from app.integrations.azure_rm import (
     listar_subscriptions_por_tenant,
     obtener_recursos_por_tenant,
 )
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+
+
+def _validar_tenants_unicos(tenants: list[TenantCreate]) -> None:
+    tenant_ids = [tenant.tenant_id_azure for tenant in tenants]
+    if len(tenant_ids) != len(set(tenant_ids)):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No se puede asociar el mismo tenant de Azure más de una vez al cliente.",
+        )
+
+
+async def _obtener_cliente_con_tenants(
+    db: AsyncSession,
+    cliente_id: uuid.UUID,
+) -> Cliente:
+    result = await db.execute(
+        select(Cliente)
+        .options(selectinload(Cliente.tenants))
+        .where(Cliente.id == cliente_id)
+    )
+    cliente = result.scalar_one()
+    return cliente
+
+
+async def _commit_cliente(db: AsyncSession, cliente_id: uuid.UUID) -> Cliente:
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No se pudo guardar el cliente porque uno de sus tenants de Azure "
+                "ya está duplicado."
+            ),
+        ) from exc
+    return await _obtener_cliente_con_tenants(db, cliente_id)
 
 
 @router.get("", response_model=list[ClienteOut])
@@ -33,6 +77,8 @@ async def crear_cliente(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin()),
 ):
+    _validar_tenants_unicos(body.tenants)
+
     cliente = Cliente(nombre=body.nombre)
     db.add(cliente)
     await db.flush()
@@ -45,9 +91,7 @@ async def crear_cliente(
         )
         db.add(tenant)
 
-    await db.commit()
-    await db.refresh(cliente)
-    return cliente
+    return await _commit_cliente(db, cliente.id)
 
 
 @router.put("/{cliente_id}", response_model=ClienteOut)
@@ -66,13 +110,18 @@ async def actualizar_cliente(
     if body.activo is not None:
         cliente.activo = body.activo
     if body.tenants is not None:
+        _validar_tenants_unicos(body.tenants)
         await db.execute(delete(Tenant).where(Tenant.cliente_id == cliente_id))
         for t in body.tenants:
-            db.add(Tenant(cliente_id=cliente_id, tenant_id_azure=t.tenant_id_azure, nombre=t.nombre))
+            db.add(
+                Tenant(
+                    cliente_id=cliente_id,
+                    tenant_id_azure=t.tenant_id_azure,
+                    nombre=t.nombre,
+                )
+            )
 
-    await db.commit()
-    await db.refresh(cliente)
-    return cliente
+    return await _commit_cliente(db, cliente_id)
 
 
 @router.delete("/{cliente_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -85,7 +134,12 @@ async def eliminar_cliente(
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
-    reportes = await db.execute(select(Reporte).where(Reporte.cliente_id == cliente_id))
+    reportes = await db.execute(
+        select(Reporte)
+        .join(Reporte.configuracion)
+        .where(Configuracion.cliente_id == cliente_id)
+        .limit(1)
+    )
     if reportes.first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

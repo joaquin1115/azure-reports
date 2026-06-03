@@ -171,7 +171,7 @@ class Tenant(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("tenant_id_azure"),
+        UniqueConstraint("cliente_id", "tenant_id_azure"),
     )
 
     cliente: Mapped["Cliente"] = relationship(
