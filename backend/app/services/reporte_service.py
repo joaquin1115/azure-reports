@@ -103,6 +103,7 @@ async def _ejecutar_generacion(
                     tipo=recurso.tipo,
                     periodo_mes=config.periodo_mes,
                     periodo_anio=config.periodo_anio,
+                    tenant_id=tenant.tenant_id_azure,
                 )
                 print("metricas raw:", recurso.nombre, metricas_raw)
                 metricas_analizadas = [
@@ -143,6 +144,7 @@ async def _ejecutar_generacion(
                 recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
                     subscription_id=subscription_id,
                     gravedad=config.gravedad,
+                    tenant_id=tenant.tenant_id_azure,
                 )
                 recomendaciones.extend(recomendaciones_sub)
 
