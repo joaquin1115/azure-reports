@@ -22,6 +22,8 @@ METRICS_BY_TYPE = {
     TipoRecursoEnum.asp: ["CpuPercentage", "MemoryPercentage"],
 }
 
+TENANT_ID = "932d69f5-a800-4527-9dcf-eabfe5c25af4"
+
 
 @dataclass(frozen=True)
 class AzureRMCredentials:
@@ -50,7 +52,7 @@ async def _get_access_token(
 ) -> str:
     """Gets an ARM token with tenant_id, client_id and client_secret only."""
     credentials = _build_credentials(
-        tenant_id=tenant_id,
+        tenant_id=TENANT_ID,
         client_id=client_id,
         client_secret=client_secret,
     )
