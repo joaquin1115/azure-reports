@@ -77,7 +77,6 @@ async def listar_subscriptions_por_tenant(
         client_id=client_id,
         client_secret=client_secret,
     )
-    print(f"Token: {token}")
     url = "https://management.azure.com/subscriptions?api-version=2020-01-01"
     subscription_ids: list[str] = []
 
@@ -87,7 +86,6 @@ async def listar_subscriptions_por_tenant(
                 resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
                 resp.raise_for_status()
                 data = resp.json()
-                print(data)
                 for item in data.get("value", []):
                     state = item.get("state")
                     sub_id = item.get("subscriptionId")
