@@ -103,7 +103,6 @@ async def _ejecutar_generacion(
                     periodo_anio=config.periodo_anio,
                     tenant_id=tenant.tenant_id_azure,
                 )
-                print("metricas raw:", recurso.nombre, metricas_raw)
                 metricas_analizadas = [
                     analizar_metrica(
                         nombre=nombre,
@@ -146,6 +145,14 @@ async def _ejecutar_generacion(
                 )
                 recomendaciones.extend(recomendaciones_sub)
 
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "redaccion_recomendaciones",
+                "estado_etapa": "completada",
+                "mensaje": "Redacción de recomendaciones completada",
+            })
+
             # --- Word ---
             usuario = await db.get(Usuario, usuario_id)
             word_bytes = generar_word(
@@ -156,14 +163,6 @@ async def _ejecutar_generacion(
                 recomendaciones=recomendaciones,
                 resultados_por_recurso=resultados_por_recurso,
             )
-
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "redaccion_recomendaciones",
-                "estado_etapa": "completada",
-                "mensaje": "Redacción de recomendaciones completada",
-            })
 
             # --- Upload to Blob ---
             nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.docx"
