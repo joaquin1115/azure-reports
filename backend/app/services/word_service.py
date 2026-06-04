@@ -410,7 +410,27 @@ def _agregar_tabla_tipo(doc: Document, titulo: str, filas: list[dict]):
     _asignar_bordes_tabla(tabla)
 
 
+def _texto_plano(valor) -> str:
+    if valor is None:
+        return ""
+    if isinstance(valor, list):
+        partes = [_texto_plano(item) for item in valor]
+        return ", ".join(parte for parte in partes if parte)
+    if isinstance(valor, (tuple, set)):
+        partes = [_texto_plano(item) for item in valor]
+        return ", ".join(parte for parte in partes if parte)
+    if isinstance(valor, dict):
+        partes = [
+            f"{clave}: {texto}"
+            for clave, item in valor.items()
+            if (texto := _texto_plano(item))
+        ]
+        return ", ".join(partes)
+    return str(valor)
+
+
 def _traducir(texto: str) -> str:
+    texto = _texto_plano(texto)
     if not texto:
         return ""
     reglas = {
@@ -433,14 +453,19 @@ def _traducir(texto: str) -> str:
 def _consolidar_recomendaciones(recomendaciones: list[dict]) -> list[dict]:
     consolidado = {}
     for r in recomendaciones:
-        key = (r.get("categoria", ""), r.get("impacto", ""), r.get("descripcion", ""))
+        categoria = _texto_plano(r.get("categoria", ""))
+        impacto = _texto_plano(r.get("impacto", ""))
+        descripcion = _texto_plano(r.get("descripcion", ""))
+        accion = _texto_plano(r.get("accion", ""))
+        key = (categoria, impacto, descripcion, accion)
         entry = consolidado.setdefault(key, {
-            "categoria": r.get("categoria", ""),
-            "impacto": r.get("impacto", ""),
-            "descripcion": r.get("descripcion", ""),
+            "categoria": categoria,
+            "impacto": impacto,
+            "descripcion": descripcion,
+            "accion": accion,
             "recursos": set(),
         })
-        recurso = r.get("recurso") or r.get("nombre_recurso")
+        recurso = _texto_plano(r.get("recurso") or r.get("nombre_recurso"))
         if recurso:
             entry["recursos"].add(recurso.split("/")[-1])
     out = []
@@ -512,8 +537,9 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
         impacto = _traducir(r["impacto"])
         categoria = _traducir(r["categoria"])
         descripcion = _traducir(r["descripcion"])
-        accion = _traducir(r["accion"])
-        texto = f"[{impacto}] {categoria}: {descripcion} Recomendación: {accion}. Recursos: {recursos}."
+        accion = _traducir(r.get("accion", ""))
+        recomendacion = f" Recomendación: {accion}." if accion else ""
+        texto = f"[{impacto}] {categoria}: {descripcion}{recomendacion} Recursos: {recursos}."
         _add_paragraph(doc, texto)
 
     for p in doc.paragraphs:
