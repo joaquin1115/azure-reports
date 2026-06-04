@@ -45,6 +45,11 @@ async def iniciar_generacion(
     await db.flush()
     await db.refresh(reporte)
 
+    # Commit before launching the background task so the new session used by
+    # _ejecutar_generacion can read the Reporte row immediately.
+    await db.commit()
+    await db.refresh(reporte)
+
     # Launch background task
     asyncio.create_task(_ejecutar_generacion(reporte.id, configuracion_id, usuario_id))
     return reporte
@@ -60,6 +65,10 @@ async def _ejecutar_generacion(
 
     async with AsyncSessionLocal() as db:
         reporte = await db.get(Reporte, reporte_id)
+        if not reporte:
+            print(f"Reporte {reporte_id} no encontrado; se cancela la generación")
+            return
+
         reporte.estado = EstadoReporteEnum.procesando
         reporte.inicio_generacion = datetime.utcnow()
         await db.commit()
@@ -103,6 +112,7 @@ async def _ejecutar_generacion(
                     tipo=recurso.tipo,
                     periodo_mes=config.periodo_mes,
                     periodo_anio=config.periodo_anio,
+                    tenant_id=tenant.tenant_id_azure,
                 )
                 print("metricas raw:", recurso.nombre, metricas_raw)
                 metricas_analizadas = [
@@ -143,6 +153,7 @@ async def _ejecutar_generacion(
                 recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
                     subscription_id=subscription_id,
                     gravedad=config.gravedad,
+                    tenant_id=tenant.tenant_id_azure,
                 )
                 recomendaciones.extend(recomendaciones_sub)
 
@@ -190,4 +201,4 @@ async def _ejecutar_generacion(
                 "reporte_id": str(reporte_id),
                 "mensaje": str(exc),
             })
-            raise
+            print(f"Error generando reporte {reporte_id}: {exc}")
