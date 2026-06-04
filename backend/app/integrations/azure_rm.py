@@ -73,27 +73,36 @@ async def listar_subscriptions_por_tenant(
     client_id: str | None = None,
     client_secret: str | None = None,
 ) -> list[str]:
-    """Lists enabled subscription IDs visible to the ARM service principal."""
     token = await _get_access_token(
         tenant_id=tenant_id,
         client_id=client_id,
         client_secret=client_secret,
     )
+
     url = "https://management.azure.com/subscriptions?api-version=2020-01-01"
     subscription_ids: list[str] = []
 
     async with httpx.AsyncClient(timeout=ARM_TIMEOUT) as client:
         for attempt in range(2):
             try:
-                resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+                resp = await client.get(
+                    url,
+                    headers={"Authorization": f"Bearer {token}"}
+                )
                 resp.raise_for_status()
+
                 data = resp.json()
+
                 for item in data.get("value", []):
-                    state = item.get("state")
-                    sub_id = item.get("subscriptionId")
-                    if state == "Enabled" and sub_id:
-                        subscription_ids.append(sub_id)
+                    if (
+                        item.get("tenantId") == tenant_id
+                        and item.get("state") == "Enabled"
+                        and item.get("subscriptionId")
+                    ):
+                        subscription_ids.append(item["subscriptionId"])
+
                 break
+
             except httpx.ReadTimeout:
                 if attempt == 1:
                     return []
