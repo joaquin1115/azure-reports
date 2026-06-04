@@ -14,13 +14,6 @@ bearer_scheme = HTTPBearer(auto_error=False)
 _jwks_cache: dict = {}
 
 
-def _get_valid_audiences() -> str:
-    configured = settings.azure_client_id.strip()
-    if configured.startswith("api://"):
-        return configured
-    return f"api://{configured}"
-
-
 async def _get_jwks() -> dict:
     global _jwks_cache
     if _jwks_cache:
@@ -56,7 +49,7 @@ async def get_current_user(
             token,
             key,
             algorithms=["RS256"],
-            audience=_get_valid_audiences(),
+            options={"verify_aud": False},
         )
         return payload
     except JWTError as e:

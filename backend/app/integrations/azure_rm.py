@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import httpx
 from azure.identity.aio import ClientSecretCredential
 from app.config import get_settings
@@ -21,11 +23,41 @@ METRICS_BY_TYPE = {
 }
 
 
-async def _get_access_token() -> str:
+@dataclass(frozen=True)
+class AzureRMCredentials:
+    tenant_id: str
+    client_id: str
+    client_secret: str
+
+
+def _build_credentials(
+    tenant_id: str | None = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+) -> AzureRMCredentials:
+    """Builds Azure Resource Manager client-credential auth data."""
+    return AzureRMCredentials(
+        tenant_id=tenant_id or settings.azure_tenant_id,
+        client_id=client_id or settings.azure_client_id,
+        client_secret=client_secret or settings.azure_client_secret,
+    )
+
+
+async def _get_access_token(
+    tenant_id: str | None = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+) -> str:
+    """Gets an ARM token with tenant_id, client_id and client_secret only."""
+    credentials = _build_credentials(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
     credential = ClientSecretCredential(
-        tenant_id=settings.azure_tenant_id,
-        client_id=settings.azure_client_id,
-        client_secret=settings.azure_client_secret,
+        tenant_id=credentials.tenant_id,
+        client_id=credentials.client_id,
+        client_secret=credentials.client_secret,
     )
     try:
         token = await credential.get_token("https://management.azure.com/.default")
@@ -34,9 +66,17 @@ async def _get_access_token() -> str:
         await credential.close()
 
 
-async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
-    """Lists subscription IDs visible for the configured service principal tenant."""
-    token = await _get_access_token()
+async def listar_subscriptions_por_tenant(
+    tenant_id: str,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+) -> list[str]:
+    """Lists enabled subscription IDs visible to the ARM service principal."""
+    token = await _get_access_token(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
     url = "https://management.azure.com/subscriptions?api-version=2020-01-01"
     subscription_ids: list[str] = []
 
@@ -47,10 +87,9 @@ async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
                 resp.raise_for_status()
                 data = resp.json()
                 for item in data.get("value", []):
-                    tenant = item.get("tenantId")
                     state = item.get("state")
                     sub_id = item.get("subscriptionId")
-                    if tenant == tenant_id and state == "Enabled" and sub_id:
+                    if state == "Enabled" and sub_id:
                         subscription_ids.append(sub_id)
                 break
             except httpx.ReadTimeout:
@@ -63,15 +102,21 @@ async def listar_subscriptions_por_tenant(tenant_id: str) -> list[str]:
 async def obtener_recursos_por_tenant(
     tenant_id: str,
     subscription_id: str,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> list[RecursoAzure]:
     """Fetches all supported resources from a subscription."""
-    token = await _get_access_token()
+    token = await _get_access_token(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
     url = (
         f"https://management.azure.com/subscriptions/{subscription_id}"
         f"/resources?&api-version=2021-04-01"
     )
     recursos = []
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=ARM_TIMEOUT) as client:
         resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
         resp.raise_for_status()
         data = resp.json()
@@ -96,6 +141,7 @@ async def obtener_metricas_recurso(
     tipo: TipoRecursoEnum,
     periodo_mes: int,
     periodo_anio: int,
+    tenant_id: str | None = None,
     client_id: str | None = None,
     client_secret: str | None = None,
 ) -> dict:
@@ -106,7 +152,11 @@ async def obtener_metricas_recurso(
     from datetime import datetime, timezone
     import calendar
 
-    token = await _get_access_token()
+    token = await _get_access_token(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
     metrica_names = METRICS_BY_TYPE[tipo]
 
     last_day = calendar.monthrange(periodo_anio, periodo_mes)[1]
@@ -123,7 +173,7 @@ async def obtener_metricas_recurso(
 
     resultado = {}
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=ARM_TIMEOUT) as client:
         for metrica in metrica_names:
             url = (
                 f"https://management.azure.com{resource_id}"
@@ -170,23 +220,18 @@ async def obtener_metricas_recurso(
     return resultado
 
 
-async def validar_tenant(tenant_id_azure: str) -> bool:
-    """Checks that a tenant is accessible via Azure RM."""
-    token = await _get_access_token()
-    url = "https://management.azure.com/tenants?api-version=2022-12-01"
+async def validar_tenant(
+    tenant_id_azure: str,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+) -> bool:
+    """Checks that ARM can obtain a token for the tenant service principal."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                url,
-                headers={"Authorization": f"Bearer {token}"},
-            )
-        if resp.status_code == 404:
-            return False
-        resp.raise_for_status()
-        data = resp.json()
-        return any(
-            item.get("tenantId") == tenant_id_azure
-            for item in data.get("value", [])
+        await _get_access_token(
+            tenant_id=tenant_id_azure,
+            client_id=client_id,
+            client_secret=client_secret,
         )
+        return True
     except Exception:
         return False

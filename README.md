@@ -105,9 +105,9 @@ pytest tests/ -v
 | Variable | Descripción |
 |---|---|
 | `DATABASE_URL` | URL de conexión PostgreSQL async |
-| `AZURE_TENANT_ID` | Tenant ID del App Registration |
-| `AZURE_CLIENT_ID` | Client ID del App Registration |
-| `AZURE_CLIENT_SECRET` | Client secret del App Registration usado para Azure Resource Manager |
+| `AZURE_TENANT_ID` | Tenant ID usado para emitir tokens de Azure Resource Manager con client credentials |
+| `AZURE_CLIENT_ID` | Client ID usado para Azure Resource Manager con client credentials |
+| `AZURE_CLIENT_SECRET` | Client secret usado para Azure Resource Manager con client credentials |
 | `AZURE_STORAGE_CONNECTION_STRING` | Connection string de Azure Blob Storage |
 | `AZURE_STORAGE_CONTAINER` | Nombre del contenedor de PDFs |
 | `ALLOWED_ORIGINS` | Lista JSON de orígenes CORS permitidos |
@@ -141,9 +141,9 @@ El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) realiza automáti
 | `AZURE_WEBAPP_PUBLISH_PROFILE` | Publish profile del App Service |
 | `AZURE_CREDENTIALS` | Credenciales JSON para actualizar App Settings del App Service |
 | `DATABASE_URL` | URL de conexión PostgreSQL async para producción |
-| `AZURE_TENANT_ID` | Tenant ID del App Registration usado por backend/API |
-| `AZURE_CLIENT_ID` | Client ID del App Registration usado por backend/API |
-| `AZURE_CLIENT_SECRET` | Client secret del App Registration usado por Azure Resource Manager |
+| `AZURE_TENANT_ID` | Tenant ID usado por backend/API y Azure Resource Manager con client credentials |
+| `AZURE_CLIENT_ID` | Client ID usado por backend/API y Azure Resource Manager con client credentials |
+| `AZURE_CLIENT_SECRET` | Client secret usado por Azure Resource Manager con client credentials |
 | `AZURE_STORAGE_CONNECTION_STRING` | Connection string de Azure Blob Storage |
 | `AZURE_STORAGE_CONTAINER` | Nombre del contenedor de PDFs |
 | `AZURE_TRANSLATOR_KEY` | Key de Azure Translator |
