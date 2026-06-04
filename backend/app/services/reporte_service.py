@@ -162,7 +162,15 @@ async def _ejecutar_generacion(
                 "mensaje": "Redacción de recomendaciones completada",
             })
 
-            # --- Word ---
+            # --- Consolidación del documento ---
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "consolidacion_documento",
+                "estado_etapa": "iniciada",
+                "mensaje": "Consolidación del documento en progreso",
+            })
+
             usuario = await db.get(Usuario, usuario_id)
             word_bytes = generar_word(
                 cliente_nombre=cliente.nombre,
@@ -176,6 +184,14 @@ async def _ejecutar_generacion(
             # --- Upload to Blob ---
             nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.docx"
             await blob_storage.subir_documento(word_bytes, nombre_blob, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "consolidacion_documento",
+                "estado_etapa": "completada",
+                "mensaje": "Consolidación del documento completada",
+            })
 
             # --- Update reporte ---
             fin = datetime.utcnow()

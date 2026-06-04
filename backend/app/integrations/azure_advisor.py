@@ -2,7 +2,6 @@ import httpx
 from app.models.models import GravedadEnum
 from app.integrations.azure_rm import _get_access_token
 from app.integrations.azure_translator import traducir_textos
-import asyncio
 
 GRAVEDAD_MAP = {
     GravedadEnum.alta: ["High"],
@@ -49,24 +48,28 @@ async def obtener_recomendaciones(
                 except (ValueError, TypeError):
                     ahorro_mensual = 0
 
+                short_description = props.get("shortDescription", {})
+
                 recomendaciones.append({
                     "id": item.get("id"),
                     "categoria": props.get("category", ""),
                     "impacto": nivel,
                     "recurso": props.get("resourceMetadata", {}).get("resourceId", ""),
-                    "nombre_recurso": props.get("shortDescription", {}).get("solution", ""),
-                    "descripcion": props.get("shortDescription", {}).get("problem", ""),
+                    "nombre_recurso": props.get("resourceMetadata", {}).get("resourceName", ""),
+                    "descripcion": short_description.get("problem", ""),
+                    "accion": short_description.get("solution", ""),
                     "ahorro_mensual_usd": ahorro_mensual,
                 })
 
     if recomendaciones:
         descripciones = [r["descripcion"] for r in recomendaciones]
+        acciones = [r["accion"] for r in recomendaciones]
 
-        descripciones_es = await asyncio.gather(
-            traducir_textos(descripciones)
-        )
+        descripciones_es = await traducir_textos(descripciones)
+        acciones_es = await traducir_textos(acciones)
 
-        for rec, desc in zip(recomendaciones, descripciones_es):
+        for rec, desc, accion in zip(recomendaciones, descripciones_es, acciones_es):
             rec["descripcion"] = desc
+            rec["accion"] = accion
 
     return recomendaciones
