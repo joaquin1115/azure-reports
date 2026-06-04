@@ -65,9 +65,17 @@ async def _ejecutar_generacion(
         await db.commit()
 
         try:
+            # --- Métricas por recurso ---
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso",
+                "reporte_id": str(reporte_id),
+                "etapa": "analisis_metricas",
+                "estado_etapa": "iniciada",
+                "mensaje": "Análisis de métricas en progreso",
+            })
+
             config = await db.get(Configuracion, configuracion_id)
             cliente = await db.get(Cliente, config.cliente_id)
-            usuario = await db.get(Usuario, usuario_id)
 
             # Load tenants and resources
             tenants_result = await db.execute(
@@ -85,16 +93,6 @@ async def _ejecutar_generacion(
             tenant = tenants[0] if tenants else None
             if not tenant:
                 raise ValueError("El cliente no tiene tenants configurados")
-
-
-            # --- Métricas por recurso ---
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "analisis_metricas",
-                "estado_etapa": "iniciada",
-                "mensaje": "Análisis de métricas en progreso",
-            })
 
             resultados_por_recurso = []
             for recurso in recursos:
@@ -148,6 +146,8 @@ async def _ejecutar_generacion(
                 )
                 recomendaciones.extend(recomendaciones_sub)
 
+            # --- Word ---
+            usuario = await db.get(Usuario, usuario_id)
             word_bytes = generar_word(
                 cliente_nombre=cliente.nombre,
                 periodo_mes=config.periodo_mes,
