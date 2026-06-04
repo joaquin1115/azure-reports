@@ -187,8 +187,6 @@ async def obtener_metricas_recurso(
                 f"&timespan={start}/{end}"
             )
 
-            print(url)
-
             resp = await client.get(
                 url,
                 headers={"Authorization": f"Bearer {token}"}
@@ -199,7 +197,6 @@ async def obtener_metricas_recurso(
                 continue
 
             data = resp.json()
-            print("data:", data)
 
             valores = []
             fechas = []
