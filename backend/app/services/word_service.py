@@ -433,12 +433,11 @@ def _traducir(texto: str) -> str:
 def _consolidar_recomendaciones(recomendaciones: list[dict]) -> list[dict]:
     consolidado = {}
     for r in recomendaciones:
-        key = (r.get("categoria", ""), r.get("impacto", ""), r.get("descripcion", ""), r.get("accion", ""))
+        key = (r.get("categoria", ""), r.get("impacto", ""), r.get("descripcion", ""))
         entry = consolidado.setdefault(key, {
             "categoria": r.get("categoria", ""),
             "impacto": r.get("impacto", ""),
             "descripcion": r.get("descripcion", ""),
-            "accion": r.get("accion", ""),
             "recursos": set(),
         })
         recurso = r.get("recurso") or r.get("nombre_recurso")

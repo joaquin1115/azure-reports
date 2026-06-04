@@ -56,21 +56,17 @@ async def obtener_recomendaciones(
                     "recurso": props.get("resourceMetadata", {}).get("resourceId", ""),
                     "nombre_recurso": props.get("shortDescription", {}).get("solution", ""),
                     "descripcion": props.get("shortDescription", {}).get("problem", ""),
-                    "accion": props.get("shortDescription", {}).get("solution", ""),
                     "ahorro_mensual_usd": ahorro_mensual,
                 })
 
     if recomendaciones:
         descripciones = [r["descripcion"] for r in recomendaciones]
-        acciones = [r["accion"] for r in recomendaciones]
 
-        descripciones_es, acciones_es = await asyncio.gather(
-            traducir_textos(descripciones),
-            traducir_textos(acciones),
+        descripciones_es = await asyncio.gather(
+            traducir_textos(descripciones)
         )
 
-        for rec, desc, acc in zip(recomendaciones, descripciones_es, acciones_es):
+        for rec, desc in zip(recomendaciones, descripciones_es):
             rec["descripcion"] = desc
-            rec["accion"] = acc
 
     return recomendaciones
