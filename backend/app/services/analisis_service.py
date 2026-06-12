@@ -13,7 +13,6 @@ class ResultadoMetrica:
     minimo: float
     p95: float
     desviacion: float
-    anomalias: list[dict]
     observaciones: list[str]
     valores: list[float]
     fechas: list[str]
@@ -42,7 +41,6 @@ def analizar_metrica(
             minimo=0,
             p95=0,
             desviacion=0,
-            anomalias=[],
             observaciones=["Sin datos disponibles para el período."],
             valores=[],
             fechas=[],
@@ -68,28 +66,10 @@ def analizar_metrica(
         else 0
     )
 
-    # Detección de anomalías mediante Z-Score
-    anomalias = []
-
-    if desviacion > 0:
-        for i, valor in enumerate(valores_limpios):
-
-            z_score = abs(
-                (valor - promedio) / desviacion
-            )
-
-            if z_score > 2.0:
-                anomalias.append({
-                    "fecha": fechas[i] if i < len(fechas) else f"Día {i+1}",
-                    "valor": round(valor, 2),
-                    "z_score": round(z_score, 2),
-                })
-
     observaciones = _generar_observaciones(
         nombre=nombre,
         maximo=maximo,
         p95=p95,
-        anomalias=anomalias,
         valores=valores_limpios,
     )
 
@@ -100,7 +80,6 @@ def analizar_metrica(
         minimo=round(minimo, 2),
         p95=round(p95, 2),
         desviacion=round(desviacion, 2),
-        anomalias=anomalias,
         observaciones=observaciones,
         valores=valores_limpios,
         fechas=fechas,
@@ -111,7 +90,6 @@ def _generar_observaciones(
     nombre: str,
     maximo: float,
     p95: float,
-    anomalias: list[dict],
     valores: list[float],
 ) -> list[str]:
 
