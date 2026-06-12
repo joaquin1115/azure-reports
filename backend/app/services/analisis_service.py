@@ -12,7 +12,6 @@ class ResultadoMetrica:
     maximo: float
     minimo: float
     p95: float
-    desviacion: float
     observaciones: list[str]
     valores: list[float]
     fechas: list[str]
@@ -40,31 +39,17 @@ def analizar_metrica(
             maximo=0,
             minimo=0,
             p95=0,
-            desviacion=0,
             observaciones=["Sin datos disponibles para el período."],
             valores=[],
             fechas=[],
         )
 
-    # Imputación de nulos mediante mediana
-    validos = [v for v in valores if v is not None]
-    mediana = statistics.median(validos) if validos else 0
-
-    valores_limpios = [
-        v if v is not None else mediana
-        for v in valores
-    ]
+    valores_limpios = [v for v in valores if v is not None]
 
     promedio = statistics.mean(valores_limpios)
     maximo = max(valores_limpios)
     minimo = min(valores_limpios)
     p95 = calcular_p95(valores_limpios)
-
-    desviacion = (
-        statistics.stdev(valores_limpios)
-        if len(valores_limpios) > 1
-        else 0
-    )
 
     observaciones = _generar_observaciones(
         nombre=nombre,
@@ -79,7 +64,6 @@ def analizar_metrica(
         maximo=round(maximo, 2),
         minimo=round(minimo, 2),
         p95=round(p95, 2),
-        desviacion=round(desviacion, 2),
         observaciones=observaciones,
         valores=valores_limpios,
         fechas=fechas,
