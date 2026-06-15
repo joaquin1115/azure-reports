@@ -1,24 +1,38 @@
 import { useState, useEffect } from "react";
-import { Select, DatePicker, Button, Table, Tag, Switch, Empty } from "antd";
+import { Select, DatePicker, Button, Table, Tag, Empty, Checkbox, Radio, Spin } from "antd";
 import { CalendarOutlined, PlusOutlined, PauseCircleOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import api from "../services/apiClient";
 import { useNotifStore } from "../store/store";
 import dayjs, { Dayjs } from "dayjs";
 
-type Config = { id: string; nombre: string; cliente: { nombre: string }; periodo_mes: number; periodo_anio: number };
-type Programacion = { id: string; configuracion_id: string; fecha_inicio: string; frecuencia: string; proxima_ejecucion: string; activa: boolean };
+type Cliente = { id: string; nombre: string };
+type Recurso = { resource_id: string; nombre: string; tipo: string };
+type RecursoProgramado = { id: string; azure_resource_id: string; nombre: string };
+type Programacion = {
+  id: string;
+  cliente: Cliente;
+  tipo_recomendacion: string;
+  frecuencia: string;
+  proxima_ejecucion: string;
+  activa: boolean;
+  recursos: RecursoProgramado[];
+};
 
 export function ProgramarReportePage() {
-  const [configs, setConfigs] = useState<Config[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
-  const [configId, setConfigId] = useState<string>();
+  const [clienteId, setClienteId] = useState<string>();
+  const [recursos, setRecursos] = useState<Recurso[]>([]);
+  const [recursosSeleccionados, setRecursosSeleccionados] = useState<string[]>([]);
+  const [gravedad, setGravedad] = useState<"alta" | "media" | "ambas">("ambas");
   const [fechaInicio, setFechaInicio] = useState<Dayjs | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingRecursos, setLoadingRecursos] = useState(false);
   const { mostrar } = useNotifStore();
 
   useEffect(() => {
-    api.get("/configuraciones?solo_guardadas=true").then((r) => setConfigs(r.data)).catch(() => {});
+    api.get("/clientes").then((r) => setClientes(r.data)).catch(() => {});
     cargarProgramaciones();
   }, []);
 
@@ -27,17 +41,38 @@ export function ProgramarReportePage() {
     setProgramaciones(r.data);
   };
 
+  const cargarRecursos = async (id: string) => {
+    setClienteId(id);
+    setRecursosSeleccionados([]);
+    setLoadingRecursos(true);
+    try {
+      const r = await api.get(`/clientes/${id}/recursos`);
+      setRecursos(r.data);
+    } catch {
+      mostrar("No se pudieron obtener los recursos de Azure", "error");
+    } finally {
+      setLoadingRecursos(false);
+    }
+  };
+
   const crear = async () => {
-    if (!configId || !fechaInicio) return;
+    if (!clienteId || recursosSeleccionados.length === 0 || !fechaInicio) return;
     setLoading(true);
     try {
       await api.post("/programaciones", {
-        configuracion_id: configId,
+        cliente_id: clienteId,
         fecha_inicio: fechaInicio.toISOString(),
-        frecuencia: "mensual",
+        frecuencia: "Mensual",
+        gravedad,
+        recursos: recursosSeleccionados.map((rid) => {
+          const rec = recursos.find((r) => r.resource_id === rid)!;
+          return { resource_id_azure: rid, nombre: rec.nombre, tipo: rec.tipo };
+        }),
       });
       mostrar("Programación registrada correctamente", "success");
-      setConfigId(undefined);
+      setClienteId(undefined);
+      setRecursos([]);
+      setRecursosSeleccionados([]);
       setFechaInicio(null);
       await cargarProgramaciones();
     } catch {
@@ -54,76 +89,47 @@ export function ProgramarReportePage() {
   };
 
   const columns: ColumnsType<Programacion> = [
-    { title: "Configuración", dataIndex: "configuracion_id", key: "config",
-      render: (id) => configs.find(c => c.id === id)?.nombre ?? id },
-    { title: "Frecuencia", dataIndex: "frecuencia", key: "freq",
-      render: (v) => <Tag color="#1987af">{v}</Tag> },
-    { title: "Próxima ejecución", dataIndex: "proxima_ejecucion", key: "prox",
-      render: (v) => dayjs(v).format("DD/MM/YYYY") },
-    { title: "Estado", dataIndex: "activa", key: "estado",
-      render: (v) => v
-        ? <span className="badge-estado badge-completado">Activa</span>
-        : <span className="badge-estado badge-error">Inactiva</span> },
-    { title: "", key: "acc",
-      render: (_, r) => r.activa
-        ? <Button size="small" icon={<PauseCircleOutlined />} onClick={() => desactivar(r.id)}>Desactivar</Button>
-        : null },
+    { title: "Cliente", dataIndex: ["cliente", "nombre"], key: "cliente" },
+    { title: "Recomendaciones", dataIndex: "tipo_recomendacion", key: "tipo", render: (v) => <Tag color="#1987af">{v}</Tag> },
+    { title: "Recursos", dataIndex: "recursos", key: "recursos", render: (rs: RecursoProgramado[]) => rs.length },
+    { title: "Frecuencia", dataIndex: "frecuencia", key: "freq", render: (v) => <Tag color="#64748b">{v}</Tag> },
+    { title: "Próxima ejecución", dataIndex: "proxima_ejecucion", key: "prox", render: (v) => dayjs(v).format("DD/MM/YYYY") },
+    { title: "Estado", dataIndex: "activa", key: "estado", render: (v) => v ? <span className="badge-estado badge-completado">Activa</span> : <span className="badge-estado badge-error">Inactiva</span> },
+    { title: "", key: "acc", render: (_, r) => r.activa ? <Button size="small" icon={<PauseCircleOutlined />} onClick={() => desactivar(r.id)}>Desactivar</Button> : null },
   ];
 
   return (
     <div>
       <div className="page-header">
         <h1>Programar reporte</h1>
-        <p>Configura la generación automática mensual de reportes</p>
+        <p>Selecciona cliente, recursos y alcance de recomendaciones para una ejecución mensual automática.</p>
       </div>
 
       <div className="card">
         <div className="card-title"><span className="dot"/> Nueva programación</div>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Configuración guardada</div>
-            <Select
-              style={{ width: 280 }}
-              placeholder="Selecciona una configuración"
-              value={configId}
-              onChange={setConfigId}
-              options={configs.map((c) => ({ value: c.id, label: c.nombre }))}
-            />
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Fecha de inicio</div>
-            <DatePicker
-              value={fechaInicio}
-              onChange={setFechaInicio}
-              format="DD/MM/YYYY"
-              placeholder="Selecciona fecha"
-              disabledDate={(d) => d.isBefore(dayjs(), "day")}
-            />
-          </div>
-          <button
-            className="btn-primary"
-            onClick={crear}
-            disabled={!configId || !fechaInicio || loading}
-          >
+        <div style={{ display: "grid", gap: 16 }}>
+          <Select style={{ width: "100%" }} placeholder="Selecciona un cliente" value={clienteId} onChange={cargarRecursos} options={clientes.map((c) => ({ value: c.id, label: c.nombre }))} />
+          {loadingRecursos && <Spin />}
+          {recursos.length > 0 && (
+            <Checkbox.Group style={{ display: "flex", flexDirection: "column", gap: 8 }} value={recursosSeleccionados} onChange={(vals) => setRecursosSeleccionados(vals as string[])}>
+              {recursos.map((r) => <Checkbox key={r.resource_id} value={r.resource_id}><Tag>{r.tipo}</Tag>{r.nombre}</Checkbox>)}
+            </Checkbox.Group>
+          )}
+          <Radio.Group value={gravedad} onChange={(e) => setGravedad(e.target.value)}>
+            <Radio value="alta">Críticas: solo alta</Radio>
+            <Radio value="media">Prioritarias: alta y media</Radio>
+            <Radio value="ambas">Todas: alta, media y baja</Radio>
+          </Radio.Group>
+          <DatePicker value={fechaInicio} onChange={setFechaInicio} format="DD/MM/YYYY" placeholder="Fecha de inicio" disabledDate={(d) => d.isBefore(dayjs(), "day")} />
+          <button className="btn-primary" onClick={crear} disabled={!clienteId || recursosSeleccionados.length === 0 || !fechaInicio || loading}>
             <PlusOutlined /> Crear programación
           </button>
         </div>
-        {configs.length === 0 && (
-          <p style={{ marginTop: 12, fontSize: 13, color: "#94a3b8" }}>
-            No tienes configuraciones guardadas. Genera un reporte y activa "Guardar configuración" para poder programarla.
-          </p>
-        )}
       </div>
 
       <div className="card">
-        <div className="card-title"><span className="dot"/> Programaciones activas</div>
-        <Table
-          columns={columns}
-          dataSource={programaciones}
-          rowKey="id"
-          locale={{ emptyText: <Empty description="No hay programaciones registradas" /> }}
-          pagination={{ pageSize: 10 }}
-        />
+        <div className="card-title"><span className="dot"/> Programaciones</div>
+        <Table columns={columns} dataSource={programaciones} rowKey="id" locale={{ emptyText: <Empty description="No hay programaciones registradas" /> }} pagination={{ pageSize: 10 }} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from app.config import get_settings
 from app.db.session import get_db
 from app.models.models import RolEnum, Usuario
@@ -74,7 +75,7 @@ def require_role(*roles: RolEnum):
         print(f"Correo: {correo}")
 
         usuario_result = await db.execute(
-            select(Usuario).where(func.lower(Usuario.correo) == correo.lower())
+            select(Usuario).where(func.lower(Usuario.correo) == correo.lower()).options(selectinload(Usuario.rol))
         )
         usuario = usuario_result.scalar_one_or_none()
         if not usuario or not usuario.activo:
@@ -83,14 +84,14 @@ def require_role(*roles: RolEnum):
                 detail="Usuario no autorizado o inactivo",
             )
 
-        if usuario.rol not in roles:
+        if usuario.rol.nombre not in [{"admin": "Administrador", "especialista": "Especialista"}[role.value] for role in roles]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes permisos para realizar esta acción",
             )
 
-        current_user["db_usuario_id"] = str(usuario.id)
-        current_user["db_rol"] = usuario.rol
+        current_user["db_usuario_id"] = str(usuario.usuario_id)
+        current_user["db_rol"] = usuario.rol.nombre
         return current_user
     return dependency
 

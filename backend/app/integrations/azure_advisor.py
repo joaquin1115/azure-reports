@@ -5,8 +5,8 @@ from app.integrations.azure_translator import traducir_textos
 
 GRAVEDAD_MAP = {
     GravedadEnum.alta: ["High"],
-    GravedadEnum.media: ["Medium"],
-    GravedadEnum.ambas: ["High", "Medium"],
+    GravedadEnum.media: ["High", "Medium"],
+    GravedadEnum.ambas: ["High", "Medium", "Low"],
 }
 
 
