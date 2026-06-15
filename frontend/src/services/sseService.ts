@@ -3,7 +3,7 @@ export type SSEEvento = {
   reporte_id?: string;
   tiempo_seg?: number;
   mensaje?: string;
-  etapa?: "analisis_metricas" | "redaccion_recomendaciones" | "consolidacion_documento";
+  etapa?: "analisis_metricas" | "redaccion_recomendaciones" | "preparacion_documento";
   estado_etapa?: "iniciada" | "completada";
 };
 
