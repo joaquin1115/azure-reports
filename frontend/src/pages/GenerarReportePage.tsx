@@ -139,7 +139,7 @@ export function GenerarReportePage() {
   const etapas = [
     { key: "analisis_metricas", label: "Análisis de métricas" },
     { key: "redaccion_recomendaciones", label: "Redacción de recomendaciones" },
-    { key: "consolidacion_documento", label: "Consolidación del documento" },
+    { key: "preparacion_documento", label: "Preparación del documento" },
   ];
 
   return (

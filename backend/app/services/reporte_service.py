@@ -121,7 +121,7 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                 raise ValueError("El cliente no tiene tenants configurados")
 
             resultados_por_recurso = []
-            
+
             for recurso in disparador.recursos:
                 tipo_recurso = obtener_tipo_recurso(recurso.azure_resource_id)
 
@@ -158,7 +158,7 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                 recomendaciones.extend(await azure_advisor.obtener_recomendaciones(subscription_id=subscription_id, gravedad=gravedad, tenant_id=tenant.tenant_id_azure))
 
             _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "completada", "mensaje": "Redacción de recomendaciones completada"})
-            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "consolidacion_documento", "estado_etapa": "iniciada", "mensaje": "Consolidación del documento en progreso"})
+            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "preparacion_documento", "estado_etapa": "iniciada", "mensaje": "Preparación del documento en progreso"})
 
             usuario = await db.get(Usuario, usuario_id)
             word_bytes = generar_word(cliente_nombre=cliente.nombre, periodo_mes=reporte.periodo_mes, periodo_anio=reporte.periodo_anio, usuario_nombre=usuario.nombre, recomendaciones=recomendaciones, resultados_por_recurso=resultados_por_recurso)
