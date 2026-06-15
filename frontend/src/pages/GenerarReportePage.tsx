@@ -87,11 +87,12 @@ export function GenerarReportePage() {
           return { resource_id_azure: rid, nombre: rec.nombre, tipo: rec.tipo };
         }),
       };
-      const configResp = await api.post("/configuraciones", configPayload);
-      const configId = configResp.data.id;
+      if (guardar) {
+        await api.post("/configuraciones", configPayload);
+      }
 
-      // 2. Trigger generation
-      const genResp = await api.post("/reportes", { configuracion_id: configId });
+      // 2. Trigger generation; manual runs are persisted as a disparador with recurrencia Única.
+      const genResp = await api.post("/reportes", configPayload);
       const rid = genResp.data.reporte_id;
       setReporteId(rid);
 

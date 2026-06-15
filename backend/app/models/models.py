@@ -1,24 +1,12 @@
-import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import (
-    String,
-    Boolean,
-    DateTime,
-    Float,
-    ForeignKey,
-    Integer,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, SmallInteger, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.session import Base
 
 
-# ── ENUMS PYTHON (solo para validación/tipado) ───────────────────────────────
 class RolEnum(str, enum.Enum):
     admin = "admin"
     especialista = "especialista"
@@ -37,418 +25,168 @@ class TipoRecursoEnum(str, enum.Enum):
 
 
 class EstadoReporteEnum(str, enum.Enum):
-    pendiente = "pendiente"
-    procesando = "procesando"
-    completado = "completado"
-    error = "error"
+    pendiente = "Pendiente"
+    procesando = "En proceso"
+    completado = "Completado"
+    error = "Error"
 
 
-# ── Usuario ──────────────────────────────────────────────────────────────────
-class Usuario(Base):
-    __tablename__ = "usuarios"
+class Rol(Base):
+    __tablename__ = "rol"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    rol_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(500))
 
-    correo: Mapped[str] = mapped_column(
-        String(255),
-        unique=True,
-        nullable=False,
-    )
-
-    nombre: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
-    rol: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-    )
-
-    activo: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-    )
-
-    creado_en: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
-
-    asignaciones: Mapped[list["AsignacionUsuarioCliente"]] = relationship(
-        back_populates="usuario",
-        cascade="all, delete-orphan",
-    )
-
-    programaciones: Mapped[list["Programacion"]] = relationship(
-        back_populates="usuario",
-    )
-
-    reportes: Mapped[list["Reporte"]] = relationship(
-        back_populates="usuario",
-    )
+    usuarios: Mapped[list["Usuario"]] = relationship(back_populates="rol")
 
 
-# ── Cliente ───────────────────────────────────────────────────────────────────
+class TipoRecomendacion(Base):
+    __tablename__ = "tipo_recomendacion"
+
+    tipo_recomendacion_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+
+    disparadores: Mapped[list["Disparador"]] = relationship(back_populates="tipo_recomendacion")
+
+
+class EstadoReporte(Base):
+    __tablename__ = "estado_reporte"
+
+    estado_reporte_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+
+    reportes: Mapped[list["Reporte"]] = relationship(back_populates="estado_reporte")
+
+
+class Recurrencia(Base):
+    __tablename__ = "recurrencia"
+
+    recurrencia_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+
+    disparadores: Mapped[list["Disparador"]] = relationship(back_populates="recurrencia")
+
+
 class Cliente(Base):
-    __tablename__ = "clientes"
+    __tablename__ = "cliente"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    cliente_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
-    nombre: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
+    tenants: Mapped[list["Tenant"]] = relationship(back_populates="cliente", cascade="all, delete-orphan")
+    disparadores: Mapped[list["Disparador"]] = relationship(back_populates="cliente")
 
-    activo: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-    )
-
-    creado_en: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
-
-    tenants: Mapped[list["Tenant"]] = relationship(
-        back_populates="cliente",
-        cascade="all, delete-orphan",
-    )
-
-    asignaciones: Mapped[list["AsignacionUsuarioCliente"]] = relationship(
-        back_populates="cliente",
-        cascade="all, delete-orphan",
-    )
-
-    configuraciones: Mapped[list["Configuracion"]] = relationship(
-        back_populates="cliente",
-    )
-
-    reportes: Mapped[list["Reporte"]] = relationship(
-        "Reporte",
-        secondary="configuraciones",
-        primaryjoin="Cliente.id == Configuracion.cliente_id",
-        secondaryjoin="Configuracion.id == Reporte.configuracion_id",
-        viewonly=True,
-    )
+    @property
+    def id(self) -> int:
+        return self.cliente_id
 
 
-# ── Tenant ────────────────────────────────────────────────────────────────────
 class Tenant(Base):
-    __tablename__ = "tenants"
+    __tablename__ = "tenant"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    tenant_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id_azure: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cliente.cliente_id"), nullable=False)
 
-    cliente_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("clientes.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    cliente: Mapped[Cliente] = relationship(back_populates="tenants")
 
-    tenant_id_azure: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
-    nombre: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
-    __table_args__ = (
-        UniqueConstraint("cliente_id", "tenant_id_azure"),
-    )
-
-    cliente: Mapped["Cliente"] = relationship(
-        back_populates="tenants",
-    )
+    @property
+    def id(self) -> int:
+        return self.tenant_id
 
 
-# ── AsignacionUsuarioCliente ──────────────────────────────────────────────────
-class AsignacionUsuarioCliente(Base):
-    __tablename__ = "asignaciones_usuario_cliente"
+class Usuario(Base):
+    __tablename__ = "usuario"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    usuario_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    correo: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    rol_id: Mapped[int] = mapped_column(ForeignKey("rol.rol_id"), nullable=False)
 
-    usuario_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("usuarios.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    rol: Mapped[Rol] = relationship(back_populates="usuarios")
+    disparadores: Mapped[list["Disparador"]] = relationship(back_populates="usuario")
 
-    cliente_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("clientes.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    @property
+    def id(self) -> int:
+        return self.usuario_id
 
-    asignado_en: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
-
-    __table_args__ = (
-        UniqueConstraint("usuario_id", "cliente_id"),
-    )
-
-    usuario: Mapped["Usuario"] = relationship(
-        back_populates="asignaciones",
-    )
-
-    cliente: Mapped["Cliente"] = relationship(
-        back_populates="asignaciones",
-    )
+    @property
+    def rol_nombre(self) -> str:
+        return self.rol.nombre if self.rol else ""
 
 
-# ── Configuracion ─────────────────────────────────────────────────────────────
-class Configuracion(Base):
-    __tablename__ = "configuraciones"
+class Disparador(Base):
+    __tablename__ = "disparador"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    disparador_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    proxima_ejecucion: Mapped[datetime | None] = mapped_column(DateTime)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.usuario_id"), nullable=False)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cliente.cliente_id"), nullable=False)
+    tipo_recomendacion_id: Mapped[int] = mapped_column(ForeignKey("tipo_recomendacion.tipo_recomendacion_id"), nullable=False)
+    recurrencia_id: Mapped[int] = mapped_column(ForeignKey("recurrencia.recurrencia_id"), nullable=False)
 
-    cliente_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("clientes.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    usuario: Mapped[Usuario] = relationship(back_populates="disparadores")
+    cliente: Mapped[Cliente] = relationship(back_populates="disparadores")
+    tipo_recomendacion: Mapped[TipoRecomendacion] = relationship(back_populates="disparadores")
+    recurrencia: Mapped[Recurrencia] = relationship(back_populates="disparadores")
+    recursos: Mapped[list["Recurso"]] = relationship(back_populates="disparador", cascade="all, delete-orphan")
+    reportes: Mapped[list["Reporte"]] = relationship(back_populates="disparador")
 
-    nombre: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
-    periodo_mes: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-
-    periodo_anio: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-
-    gravedad: Mapped[str] = mapped_column(
-        String(10),
-        nullable=False,
-        default="ambas",
-    )
-
-    guardada: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False,
-    )
-
-    creado_en: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
-
-    cliente: Mapped["Cliente"] = relationship(
-        back_populates="configuraciones",
-    )
-
-    recursos: Mapped[list["RecursoConfig"]] = relationship(
-        back_populates="configuracion",
-        cascade="all, delete-orphan",
-    )
-
-    programaciones: Mapped[list["Programacion"]] = relationship(
-        back_populates="configuracion",
-    )
-
-    reportes: Mapped[list["Reporte"]] = relationship(
-        back_populates="configuracion",
-    )
+    @property
+    def id(self) -> int:
+        return self.disparador_id
 
 
-# ── RecursoConfig ─────────────────────────────────────────────────────────────
-class RecursoConfig(Base):
-    __tablename__ = "recursos_config"
+class Recurso(Base):
+    __tablename__ = "recurso"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    recurso_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    azure_resource_id: Mapped[str] = mapped_column(String(2048), unique=True, nullable=False)
+    disparador_id: Mapped[int] = mapped_column(ForeignKey("disparador.disparador_id"), nullable=False)
 
-    configuracion_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("configuraciones.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    disparador: Mapped[Disparador] = relationship(back_populates="recursos")
 
-    resource_id_azure: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-
-    nombre: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
-    tipo: Mapped[str] = mapped_column(
-        String(5),
-        nullable=False,
-    )
-
-    configuracion: Mapped["Configuracion"] = relationship(
-        back_populates="recursos",
-    )
+    @property
+    def id(self) -> int:
+        return self.recurso_id
 
 
-# ── Programacion ──────────────────────────────────────────────────────────────
-class Programacion(Base):
-    __tablename__ = "programaciones"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
-
-    usuario_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("usuarios.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    configuracion_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("configuraciones.id"),
-        nullable=False,
-    )
-
-    fecha_inicio: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
-    )
-
-    frecuencia: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        default="mensual",
-    )
-
-    proxima_ejecucion: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
-    )
-
-    activa: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-    )
-
-    creado_en: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
-
-    usuario: Mapped["Usuario"] = relationship(
-        back_populates="programaciones",
-    )
-
-    configuracion: Mapped["Configuracion"] = relationship(
-        back_populates="programaciones",
-    )
-
-
-# ── Reporte ───────────────────────────────────────────────────────────────────
 class Reporte(Base):
-    __tablename__ = "reportes"
+    __tablename__ = "reporte"
+    __table_args__ = (CheckConstraint("periodo_mes BETWEEN 1 AND 12", name="chk_reporte_periodo_mes"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
+    reporte_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    periodo_mes: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    periodo_anio: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    inicio_generacion: Mapped[datetime | None] = mapped_column(DateTime)
+    fin_generacion: Mapped[datetime | None] = mapped_column(DateTime)
+    url_docx: Mapped[str | None] = mapped_column(String(2048))
+    error_mensaje: Mapped[str | None] = mapped_column(Text)
+    estado_reporte_id: Mapped[int] = mapped_column(ForeignKey("estado_reporte.estado_reporte_id"), nullable=False)
+    disparador_id: Mapped[int] = mapped_column(ForeignKey("disparador.disparador_id"), nullable=False)
 
-    configuracion_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("configuraciones.id"),
-        nullable=False,
-    )
+    estado_reporte: Mapped[EstadoReporte] = relationship(back_populates="reportes")
+    disparador: Mapped[Disparador] = relationship(back_populates="reportes")
 
+    @property
+    def id(self) -> int:
+        return self.reporte_id
 
-    usuario_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("usuarios.id"),
-        nullable=False,
-    )
+    @property
+    def estado(self) -> str:
+        return self.estado_reporte.nombre if self.estado_reporte else ""
 
-    periodo_mes: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-
-    periodo_anio: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-
-    inicio_generacion: Mapped[datetime | None] = mapped_column(
-        DateTime,
-        nullable=True,
-    )
-
-    fin_generacion: Mapped[datetime | None] = mapped_column(
-        DateTime,
-        nullable=True,
-    )
-
-    tiempo_generacion_seg: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True,
-    )
-
-    url_pdf: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
-
-    estado: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default="pendiente",
-    )
-
-    error_mensaje: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
-
-    creado_en: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
-
-    configuracion: Mapped["Configuracion"] = relationship(
-        back_populates="reportes",
-    )
-
-
-    usuario: Mapped["Usuario"] = relationship(
-        back_populates="reportes",
-    )
+    @property
+    def url_pdf(self) -> str | None:
+        return self.url_docx
