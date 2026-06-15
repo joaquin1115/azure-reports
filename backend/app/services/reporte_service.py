@@ -34,6 +34,19 @@ def _notificar_sse(reporte_id: str, evento: dict):
     if q:
         q.put_nowait(evento)
 
+def obtener_tipo_recurso(resource_id: str) -> TipoRecursoEnum:
+    resource_id = resource_id.lower()
+
+    if "/providers/microsoft.compute/virtualmachines/" in resource_id:
+        return TipoRecursoEnum.vm
+
+    if "/providers/microsoft.sql/servers/" in resource_id and "/databases/" in resource_id:
+        return TipoRecursoEnum.db
+
+    if "/providers/microsoft.web/serverfarms/" in resource_id:
+        return TipoRecursoEnum.asp
+
+    raise ValueError(f"No se pudo determinar el tipo del recurso: {resource_id}")
 
 async def iniciar_generacion_manual(
     db: AsyncSession,
@@ -108,17 +121,33 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                 raise ValueError("El cliente no tiene tenants configurados")
 
             resultados_por_recurso = []
+            
             for recurso in disparador.recursos:
+                tipo_recurso = obtener_tipo_recurso(recurso.azure_resource_id)
+
                 metricas_raw = await azure_rm.obtener_metricas_recurso(
                     resource_id=recurso.azure_resource_id,
-                    tipo=TipoRecursoEnum.vm,
+                    tipo=tipo_recurso,
                     periodo_mes=reporte.periodo_mes,
                     periodo_anio=reporte.periodo_anio,
                     tenant_id=tenant.tenant_id_azure,
                 )
-                metricas_analizadas = [analizar_metrica(nombre=nombre, valores=datos["values"], fechas=datos["dates"]) for nombre, datos in metricas_raw.items()]
-                resultados_por_recurso.append({"nombre": recurso.azure_resource_id.split("/")[-1], "tipo": TipoRecursoEnum.vm, "metricas": metricas_analizadas})
 
+                metricas_analizadas = [
+                    analizar_metrica(
+                        nombre=nombre,
+                        valores=datos["values"],
+                        fechas=datos["dates"]
+                    )
+                    for nombre, datos in metricas_raw.items()
+                ]
+
+                resultados_por_recurso.append({
+                    "nombre": recurso.azure_resource_id.split("/")[-1],
+                    "tipo": tipo_recurso,
+                    "metricas": metricas_analizadas
+                })
+            
             _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas", "estado_etapa": "completada", "mensaje": "Análisis de métricas completado"})
             _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "iniciada", "mensaje": "Redacción de recomendaciones en progreso"})
 
