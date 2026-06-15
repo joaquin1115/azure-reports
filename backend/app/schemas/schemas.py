@@ -4,18 +4,22 @@ from typing import Optional
 from app.models.models import RolEnum, GravedadEnum, TipoRecursoEnum, EstadoReporteEnum
 
 
-# ── Usuario ───────────────────────────────────────────────────────────────────
+TIPO_RECOMENDACION_LABELS = {
+    GravedadEnum.alta: "Alta",
+    GravedadEnum.media: "Alta y media",
+    GravedadEnum.ambas: "Alta, media y baja",
+}
+
+
 class UsuarioCreate(BaseModel):
     correo: EmailStr
     nombre: str
     rol: RolEnum
-    cliente_ids: list[int] = []
 
 
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
     rol: Optional[RolEnum] = None
-    cliente_ids: Optional[list[int]] = None
     activo: Optional[bool] = None
 
 
@@ -26,12 +30,10 @@ class UsuarioOut(BaseModel):
     rol: RolEnum
     activo: bool
     creado_en: datetime
-    clientes: list["ClienteSimple"] = []
 
     model_config = {"from_attributes": True}
 
 
-# ── Cliente ───────────────────────────────────────────────────────────────────
 class TenantCreate(BaseModel):
     tenant_id_azure: str
     nombre: str
@@ -74,7 +76,6 @@ class ClienteOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ── Recurso Azure (no persistido, viene de Azure RM) ─────────────────────────
 class RecursoAzure(BaseModel):
     resource_id: str
     nombre: str
@@ -83,21 +84,27 @@ class RecursoAzure(BaseModel):
     tenant_id: str
 
 
-# ── Configuracion ─────────────────────────────────────────────────────────────
-class RecursoConfigCreate(BaseModel):
+class RecursoSeleccionado(BaseModel):
     resource_id_azure: str
+    nombre: str | None = None
+    tipo: TipoRecursoEnum | None = None
+
+
+class RecursoDisparadorOut(BaseModel):
+    id: int
+    azure_resource_id: str
     nombre: str
-    tipo: TipoRecursoEnum
 
 
-class ConfiguracionCreate(BaseModel):
+class ReporteBaseCreate(BaseModel):
     cliente_id: int
-    nombre: str = "Reporte manual"
+    gravedad: GravedadEnum = GravedadEnum.ambas
+    recursos: list[RecursoSeleccionado]
+
+
+class ReporteCreate(ReporteBaseCreate):
     periodo_mes: int
     periodo_anio: int
-    gravedad: GravedadEnum = GravedadEnum.ambas
-    guardada: bool = False
-    recursos: list[RecursoConfigCreate]
 
     @field_validator("periodo_mes")
     @classmethod
@@ -107,62 +114,27 @@ class ConfiguracionCreate(BaseModel):
         return v
 
 
-class RecursoConfigOut(BaseModel):
-    id: int
-    resource_id_azure: str
-    nombre: str
-    tipo: TipoRecursoEnum
-
-    model_config = {"from_attributes": True}
-
-
-class ConfiguracionOut(BaseModel):
-    id: int
-    cliente_id: int
-    nombre: str
-    periodo_mes: int
-    periodo_anio: int
-    gravedad: GravedadEnum
-    guardada: bool
-    creado_en: datetime
-    recursos: list[RecursoConfigOut] = []
-
-    model_config = {"from_attributes": True}
-
-
-# ── Programacion ──────────────────────────────────────────────────────────────
-class ProgramacionCreate(BaseModel):
-    disparador_id: Optional[int] = None
-    configuracion_id: Optional[int] = None
+class ProgramacionCreate(ReporteBaseCreate):
     fecha_inicio: datetime
     frecuencia: str = "Mensual"
 
 
 class ProgramacionOut(BaseModel):
     id: int
-    disparador_id: int
-    fecha_inicio: datetime
+    cliente: ClienteSimple
+    tipo_recomendacion: str
     frecuencia: str
-    proxima_ejecucion: datetime
+    proxima_ejecucion: Optional[datetime]
     activa: bool
-    creado_en: Optional[datetime] = None
-
-    model_config = {"from_attributes": True}
-
-
-# ── Reporte ───────────────────────────────────────────────────────────────────
-class ReporteCreate(BaseModel):
-    cliente_id: int
-    periodo_mes: int
-    periodo_anio: int
-    gravedad: GravedadEnum = GravedadEnum.ambas
-    recursos: list[RecursoConfigCreate]
+    creado_en: datetime
+    recursos: list[RecursoDisparadorOut] = []
 
 
 class ReporteOut(BaseModel):
     id: int
     disparador_id: int
     usuario_id: int
+    cliente: ClienteSimple
     periodo_mes: int
     periodo_anio: int
     inicio_generacion: Optional[datetime]
@@ -170,10 +142,10 @@ class ReporteOut(BaseModel):
     tiempo_generacion_seg: Optional[float] = None
     url_docx: Optional[str]
     estado: EstadoReporteEnum | str
+    tipo_recomendacion: str
+    recurrencia: str
+    error_mensaje: Optional[str]
+    recursos: list[RecursoDisparadorOut] = []
     creado_en: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
-
-
-# Update forward refs
-UsuarioOut.model_rebuild()

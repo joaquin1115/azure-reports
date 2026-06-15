@@ -45,31 +45,29 @@ async def _generar_con_reintentos(
     programacion: dict,
     max_intentos: int = 3,
 ):
-    config_id = programacion["configuracion_id"]
-    prog_id = programacion["id"]
+    disparador_id = programacion["id"]
 
     for intento in range(1, max_intentos + 1):
         try:
             resp = await client.post(
-                f"{backend_url}/reportes",
-                json={"configuracion_id": config_id},
+                f"{backend_url}/reportes/disparadores/{disparador_id}/ejecutar",
                 headers=headers,
             )
             if resp.status_code in (200, 202):
-                logging.info(f"Reporte iniciado para programacion {prog_id} (intento {intento})")
+                logging.info(f"Reporte iniciado para programacion {disparador_id} (intento {intento})")
                 return
             else:
                 logging.warning(
-                    f"Intento {intento} fallido para programacion {prog_id}: "
+                    f"Intento {intento} fallido para programacion {disparador_id}: "
                     f"{resp.status_code} {resp.text}"
                 )
         except Exception as exc:
-            logging.warning(f"Intento {intento} con excepción para programacion {prog_id}: {exc}")
+            logging.warning(f"Intento {intento} con excepción para programacion {disparador_id}: {exc}")
 
         if intento < max_intentos:
             await asyncio.sleep(30 * intento)  # Exponential-ish backoff
 
-    logging.error(f"Todos los intentos fallaron para programacion {prog_id}")
+    logging.error(f"Todos los intentos fallaron para programacion {disparador_id}")
 
 
 def main(timer: TimerRequest) -> None:

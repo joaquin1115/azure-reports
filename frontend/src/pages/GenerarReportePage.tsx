@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Steps, Select, Checkbox, Radio, Button, Spin, Tag, Alert } from "antd";
-import { FileTextOutlined, CloudOutlined, SendOutlined, SaveOutlined } from "@ant-design/icons";
+import { FileTextOutlined, CloudOutlined, SendOutlined } from "@ant-design/icons";
 import api from "../services/apiClient";
 import { suscribirReporte } from "../services/sseService";
 import { useNotifStore } from "../store/store";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../services/authConfig";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 
 type Recurso = { resource_id: string; nombre: string; tipo: string; };
 type Cliente = { id: string; nombre: string; };
@@ -23,8 +24,6 @@ export function GenerarReportePage() {
   const [mes, setMes] = useState(dayjs().subtract(1, "month").month() + 1);
   const [anio, setAnio] = useState(dayjs().subtract(1, "month").year());
   const [gravedad, setGravedad] = useState<"alta" | "media" | "ambas">("ambas");
-  const [guardar, setGuardar] = useState(false);
-  const [nombreConfig, setNombreConfig] = useState("");
   const [loadingRecursos, setLoadingRecursos] = useState(false);
   const [generando, setGenerando] = useState(false);
   const [reporteId, setReporteId] = useState<string>();
@@ -34,6 +33,7 @@ export function GenerarReportePage() {
 
   const { mostrar } = useNotifStore();
   const { instance, accounts } = useMsal();
+  const navigate = useNavigate();
 
   useEffect(() => {
     api
@@ -74,25 +74,18 @@ export function GenerarReportePage() {
     setEtapasCompletadas([]);
     setEtapaActual(undefined);
     try {
-      // 1. Create or save configuration
-      const configPayload = {
+      const reportPayload = {
         cliente_id: clienteId,
-        nombre: guardar ? nombreConfig : `Config ${mes}/${anio}`,
         periodo_mes: mes,
         periodo_anio: anio,
         gravedad,
-        guardada: guardar,
         recursos: recursosSeleccionados.map((rid) => {
           const rec = recursos.find((r) => r.resource_id === rid)!;
           return { resource_id_azure: rid, nombre: rec.nombre, tipo: rec.tipo };
         }),
       };
-      if (guardar) {
-        await api.post("/configuraciones", configPayload);
-      }
 
-      // 2. Trigger generation; manual runs are persisted as a disparador with recurrencia Única.
-      const genResp = await api.post("/reportes", configPayload);
+      const genResp = await api.post("/reportes", reportPayload);
       const rid = genResp.data.reporte_id;
       setReporteId(rid);
 
@@ -221,31 +214,10 @@ export function GenerarReportePage() {
 
           <div className="card-title"><span className="dot"/> Nivel de gravedad de recomendaciones</div>
           <Radio.Group value={gravedad} onChange={(e) => setGravedad(e.target.value)} style={{ marginBottom: 20 }}>
-            <Radio value="alta">Solo alta</Radio>
-            <Radio value="media">Solo media</Radio>
-            <Radio value="ambas">Alta y media</Radio>
+            <Radio value="alta">Críticas: solo alta</Radio>
+            <Radio value="media">Prioritarias: alta y media</Radio>
+            <Radio value="ambas">Todas: alta, media y baja</Radio>
           </Radio.Group>
-
-          <div className="card-title"><span className="dot"/> Guardar configuración</div>
-          <Checkbox
-            checked={guardar}
-            onChange={(e) => setGuardar(e.target.checked)}
-            style={{ marginBottom: guardar ? 12 : 0 }}
-          >
-            Guardar esta configuración para uso futuro
-          </Checkbox>
-          {guardar && (
-            <input
-              className="ant-input"
-              placeholder="Nombre de la configuración"
-              value={nombreConfig}
-              onChange={(e) => setNombreConfig(e.target.value)}
-              style={{
-                display: "block", marginTop: 8, padding: "6px 12px",
-                border: "1px solid #d9d9d9", borderRadius: 8, width: "100%", fontFamily: "inherit",
-              }}
-            />
-          )}
 
           <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "flex-end" }}>
             <button className="btn-secondary" onClick={() => setPaso(0)}>← Anterior</button>
@@ -264,8 +236,7 @@ export function GenerarReportePage() {
                 ["Cliente", clientes.find(c => c.id === clienteId)?.nombre],
                 ["Recursos seleccionados", recursosSeleccionados.length],
                 ["Período", `${MESES[mes - 1]} ${anio}`],
-                ["Nivel de gravedad", gravedad],
-                ["Guardar configuración", guardar ? `Sí — "${nombreConfig}"` : "No"],
+                ["Recomendaciones", gravedad === "alta" ? "Solo alta" : gravedad === "media" ? "Alta y media" : "Alta, media y baja"],
               ].map(([k, v]) => (
                 <tr key={String(k)}>
                   <td style={{ padding: "8px 0", color: "#64748b", width: 200, fontWeight: 500 }}>{k}</td>
@@ -300,9 +271,10 @@ export function GenerarReportePage() {
               message={`Reporte generado en ${tiempoGen.toFixed(1)} segundos`}
               showIcon
               action={
-                <Button size="small" type="primary" onClick={descargar}>
-                  Descargar DOCX
-                </Button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button size="small" onClick={() => navigate("/historial")}>Ver historial</Button>
+                  <Button size="small" type="primary" onClick={descargar}>Descargar DOCX</Button>
+                </div>
               }
               style={{ marginBottom: 16 }}
             />

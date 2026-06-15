@@ -20,7 +20,6 @@ def _usuario_out(usuario: Usuario) -> UsuarioOut:
         "rol": {"Administrador": "admin", "Especialista": "especialista"}[usuario.rol.nombre],
         "activo": usuario.activo,
         "creado_en": usuario.creado_en,
-        "clientes": [],
     })
 
 

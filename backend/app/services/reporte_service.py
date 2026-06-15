@@ -92,6 +92,31 @@ async def iniciar_generacion_manual(
     return reporte
 
 
+async def iniciar_generacion_desde_disparador(
+    db: AsyncSession,
+    *,
+    disparador_id: int,
+    periodo_mes: int,
+    periodo_anio: int,
+) -> Reporte:
+    disparador = await db.get(Disparador, disparador_id)
+    if not disparador:
+        raise ValueError("Disparador no encontrado")
+
+    reporte = Reporte(
+        disparador_id=disparador.disparador_id,
+        periodo_mes=periodo_mes,
+        periodo_anio=periodo_anio,
+        estado_reporte_id=await get_estado_reporte_id(db, EstadoReporteEnum.pendiente.value),
+    )
+    db.add(reporte)
+    await db.flush()
+    await db.commit()
+    await db.refresh(reporte)
+    asyncio.create_task(_ejecutar_generacion(reporte.reporte_id, disparador.usuario_id))
+    return reporte
+
+
 async def _set_estado(db: AsyncSession, reporte: Reporte, estado: EstadoReporteEnum) -> None:
     reporte.estado_reporte_id = await get_estado_reporte_id(db, estado.value)
 
