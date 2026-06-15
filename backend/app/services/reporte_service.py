@@ -1,14 +1,25 @@
 import asyncio
-import uuid
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models.models import Reporte, Configuracion, RecursoConfig, Cliente, Tenant, Usuario, EstadoReporteEnum
+from sqlalchemy.orm import selectinload
+
+from app.db.catalog import get_estado_reporte_id, get_recurrencia_id, get_tipo_recomendacion_id
+from app.models.models import (
+    Cliente,
+    Disparador,
+    EstadoReporteEnum,
+    GravedadEnum,
+    Recurso,
+    Reporte,
+    Tenant,
+    TipoRecursoEnum,
+    Usuario,
+)
 from app.integrations import azure_rm, azure_advisor, blob_storage
 from app.services.analisis_service import analizar_metrica
 from app.services.word_service import generar_word
 
-# In-memory SSE subscribers: reporte_id -> asyncio.Queue
 _sse_subscribers: dict[str, asyncio.Queue] = {}
 
 
@@ -24,196 +35,116 @@ def _notificar_sse(reporte_id: str, evento: dict):
         q.put_nowait(evento)
 
 
-async def iniciar_generacion(
+async def iniciar_generacion_manual(
     db: AsyncSession,
-    configuracion_id: uuid.UUID,
-    usuario_id: uuid.UUID,
+    *,
+    cliente_id: int,
+    usuario_id: int,
+    periodo_mes: int,
+    periodo_anio: int,
+    gravedad: GravedadEnum,
+    recursos: list,
 ) -> Reporte:
-    """Creates a Reporte record and launches async generation."""
-    config = await db.get(Configuracion, configuracion_id)
-    if not config:
-        raise ValueError("Configuración no encontrada")
+    """Registra un disparador de recurrencia Única y crea el reporte asociado."""
+    cliente = await db.get(Cliente, cliente_id)
+    if not cliente:
+        raise ValueError("Cliente no encontrado")
+
+    disparador = Disparador(
+        proxima_ejecucion=None,
+        activo=False,
+        usuario_id=usuario_id,
+        cliente_id=cliente_id,
+        tipo_recomendacion_id=await get_tipo_recomendacion_id(db, {"alta": "Alta", "media": "Media", "ambas": "Baja"}[gravedad.value]),
+        recurrencia_id=await get_recurrencia_id(db, "Única"),
+    )
+    db.add(disparador)
+    await db.flush()
+
+    for recurso in recursos:
+        db.add(Recurso(azure_resource_id=recurso.resource_id_azure, disparador_id=disparador.disparador_id))
 
     reporte = Reporte(
-        configuracion_id=configuracion_id,
-        usuario_id=usuario_id,
-        periodo_mes=config.periodo_mes,
-        periodo_anio=config.periodo_anio,
-        estado=EstadoReporteEnum.pendiente,
+        disparador_id=disparador.disparador_id,
+        periodo_mes=periodo_mes,
+        periodo_anio=periodo_anio,
+        estado_reporte_id=await get_estado_reporte_id(db, EstadoReporteEnum.pendiente.value),
     )
     db.add(reporte)
     await db.flush()
-    await db.refresh(reporte)
-
-    # Commit before launching the background task so the new session used by
-    # _ejecutar_generacion can read the Reporte row immediately.
     await db.commit()
     await db.refresh(reporte)
 
-    # Launch background task
-    asyncio.create_task(_ejecutar_generacion(reporte.id, configuracion_id, usuario_id))
+    asyncio.create_task(_ejecutar_generacion(reporte.reporte_id, usuario_id))
     return reporte
 
 
-async def _ejecutar_generacion(
-    reporte_id: uuid.UUID,
-    configuracion_id: uuid.UUID,
-    usuario_id: uuid.UUID,
-):
-    """Background task: fetches data, generates Word, updates Reporte record."""
+async def _set_estado(db: AsyncSession, reporte: Reporte, estado: EstadoReporteEnum) -> None:
+    reporte.estado_reporte_id = await get_estado_reporte_id(db, estado.value)
+
+
+async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
     from app.db.session import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
-        reporte = await db.get(Reporte, reporte_id)
+        reporte = await db.get(Reporte, reporte_id, options=[selectinload(Reporte.disparador).selectinload(Disparador.recursos), selectinload(Reporte.disparador).selectinload(Disparador.tipo_recomendacion)])
         if not reporte:
             print(f"Reporte {reporte_id} no encontrado; se cancela la generación")
             return
 
-        reporte.estado = EstadoReporteEnum.procesando
+        await _set_estado(db, reporte, EstadoReporteEnum.procesando)
         reporte.inicio_generacion = datetime.utcnow()
         await db.commit()
 
         try:
-            # --- Métricas por recurso ---
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "analisis_metricas",
-                "estado_etapa": "iniciada",
-                "mensaje": "Análisis de métricas en progreso",
-            })
+            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas", "estado_etapa": "iniciada", "mensaje": "Análisis de métricas en progreso"})
 
-            config = await db.get(Configuracion, configuracion_id)
-            cliente = await db.get(Cliente, config.cliente_id)
-
-            # Load tenants and resources
-            tenants_result = await db.execute(
-                select(Tenant).where(Tenant.cliente_id == cliente.id)
-            )
+            disparador = reporte.disparador
+            cliente = await db.get(Cliente, disparador.cliente_id)
+            tenants_result = await db.execute(select(Tenant).where(Tenant.cliente_id == cliente.cliente_id))
             tenants = tenants_result.scalars().all()
-
-
-            recursos_result = await db.execute(
-                select(RecursoConfig).where(RecursoConfig.configuracion_id == configuracion_id)
-            )
-            recursos = recursos_result.scalars().all()
-
-            # Use first tenant credentials (simplified; in prod each tenant has its own creds)
             tenant = tenants[0] if tenants else None
             if not tenant:
                 raise ValueError("El cliente no tiene tenants configurados")
 
             resultados_por_recurso = []
-            for recurso in recursos:
+            for recurso in disparador.recursos:
                 metricas_raw = await azure_rm.obtener_metricas_recurso(
-                    resource_id=recurso.resource_id_azure,
-                    tipo=recurso.tipo,
-                    periodo_mes=config.periodo_mes,
-                    periodo_anio=config.periodo_anio,
+                    resource_id=recurso.azure_resource_id,
+                    tipo=TipoRecursoEnum.vm,
+                    periodo_mes=reporte.periodo_mes,
+                    periodo_anio=reporte.periodo_anio,
                     tenant_id=tenant.tenant_id_azure,
                 )
-                metricas_analizadas = [
-                    analizar_metrica(
-                        nombre=nombre,
-                        valores=datos["values"],
-                        fechas=datos["dates"],
-                    )
-                    for nombre, datos in metricas_raw.items()
-                ]
-                resultados_por_recurso.append({
-                    "nombre": recurso.nombre,
-                    "tipo": recurso.tipo,
-                    "metricas": metricas_analizadas,
-                })
+                metricas_analizadas = [analizar_metrica(nombre=nombre, valores=datos["values"], fechas=datos["dates"]) for nombre, datos in metricas_raw.items()]
+                resultados_por_recurso.append({"nombre": recurso.azure_resource_id.split("/")[-1], "tipo": TipoRecursoEnum.vm, "metricas": metricas_analizadas})
 
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "analisis_metricas",
-                "estado_etapa": "completada",
-                "mensaje": "Análisis de métricas completado",
-            })
+            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas", "estado_etapa": "completada", "mensaje": "Análisis de métricas completado"})
+            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "iniciada", "mensaje": "Redacción de recomendaciones en progreso"})
 
-            # --- Word ---
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "redaccion_recomendaciones",
-                "estado_etapa": "iniciada",
-                "mensaje": "Redacción de recomendaciones en progreso",
-            })
-
-            # --- Recomendaciones (tenant consolidado) ---
-            subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
+            gravedad = {"Alta": GravedadEnum.alta, "Media": GravedadEnum.media, "Baja": GravedadEnum.ambas}[disparador.tipo_recomendacion.nombre]
             recomendaciones = []
+            subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
             for subscription_id in subscription_ids:
-                recomendaciones_sub = await azure_advisor.obtener_recomendaciones(
-                    subscription_id=subscription_id,
-                    gravedad=config.gravedad,
-                    tenant_id=tenant.tenant_id_azure,
-                )
-                recomendaciones.extend(recomendaciones_sub)
+                recomendaciones.extend(await azure_advisor.obtener_recomendaciones(subscription_id=subscription_id, gravedad=gravedad, tenant_id=tenant.tenant_id_azure))
 
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "redaccion_recomendaciones",
-                "estado_etapa": "completada",
-                "mensaje": "Redacción de recomendaciones completada",
-            })
-
-            # --- Consolidación del documento ---
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "consolidacion_documento",
-                "estado_etapa": "iniciada",
-                "mensaje": "Consolidación del documento en progreso",
-            })
+            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "completada", "mensaje": "Redacción de recomendaciones completada"})
+            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "consolidacion_documento", "estado_etapa": "iniciada", "mensaje": "Consolidación del documento en progreso"})
 
             usuario = await db.get(Usuario, usuario_id)
-            word_bytes = generar_word(
-                cliente_nombre=cliente.nombre,
-                periodo_mes=config.periodo_mes,
-                periodo_anio=config.periodo_anio,
-                usuario_nombre=usuario.nombre,
-                recomendaciones=recomendaciones,
-                resultados_por_recurso=resultados_por_recurso,
-            )
-
-            # --- Upload to Blob ---
-            nombre_blob = f"{cliente.nombre}/{config.periodo_anio}-{config.periodo_mes:02d}/{reporte_id}.docx"
+            word_bytes = generar_word(cliente_nombre=cliente.nombre, periodo_mes=reporte.periodo_mes, periodo_anio=reporte.periodo_anio, usuario_nombre=usuario.nombre, recomendaciones=recomendaciones, resultados_por_recurso=resultados_por_recurso)
+            nombre_blob = f"{cliente.nombre}/{reporte.periodo_anio}-{reporte.periodo_mes:02d}/{reporte_id}.docx"
             await blob_storage.subir_documento(word_bytes, nombre_blob, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
-            _notificar_sse(str(reporte_id), {
-                "evento": "progreso",
-                "reporte_id": str(reporte_id),
-                "etapa": "consolidacion_documento",
-                "estado_etapa": "completada",
-                "mensaje": "Consolidación del documento completada",
-            })
-
-            # --- Update reporte ---
             fin = datetime.utcnow()
             reporte.fin_generacion = fin
-            reporte.tiempo_generacion_seg = (fin - reporte.inicio_generacion).total_seconds()
-            reporte.url_pdf = nombre_blob
-            reporte.estado = EstadoReporteEnum.completado
+            reporte.url_docx = nombre_blob
+            await _set_estado(db, reporte, EstadoReporteEnum.completado)
             await db.commit()
-
-            _notificar_sse(str(reporte_id), {
-                "evento": "completado",
-                "reporte_id": str(reporte_id),
-                "tiempo_seg": reporte.tiempo_generacion_seg,
-            })
-
+            _notificar_sse(str(reporte_id), {"evento": "completado", "reporte_id": str(reporte_id), "tiempo_seg": (fin - reporte.inicio_generacion).total_seconds()})
         except Exception as exc:
-            reporte.estado = EstadoReporteEnum.error
+            await _set_estado(db, reporte, EstadoReporteEnum.error)
             reporte.error_mensaje = str(exc)
             await db.commit()
-            _notificar_sse(str(reporte_id), {
-                "evento": "error",
-                "reporte_id": str(reporte_id),
-                "mensaje": str(exc),
-            })
+            _notificar_sse(str(reporte_id), {"evento": "error", "reporte_id": str(reporte_id), "mensaje": str(exc)})
             print(f"Error generando reporte {reporte_id}: {exc}")

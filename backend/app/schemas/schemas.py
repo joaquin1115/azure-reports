@@ -1,5 +1,4 @@
 from pydantic import BaseModel, EmailStr, field_validator
-from uuid import UUID
 from datetime import datetime
 from typing import Optional
 from app.models.models import RolEnum, GravedadEnum, TipoRecursoEnum, EstadoReporteEnum
@@ -10,18 +9,18 @@ class UsuarioCreate(BaseModel):
     correo: EmailStr
     nombre: str
     rol: RolEnum
-    cliente_ids: list[UUID] = []
+    cliente_ids: list[int] = []
 
 
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
     rol: Optional[RolEnum] = None
-    cliente_ids: Optional[list[UUID]] = None
+    cliente_ids: Optional[list[int]] = None
     activo: Optional[bool] = None
 
 
 class UsuarioOut(BaseModel):
-    id: UUID
+    id: int
     correo: str
     nombre: str
     rol: RolEnum
@@ -39,7 +38,7 @@ class TenantCreate(BaseModel):
 
 
 class TenantOut(BaseModel):
-    id: UUID
+    id: int
     tenant_id_azure: str
     nombre: str
 
@@ -58,7 +57,7 @@ class ClienteUpdate(BaseModel):
 
 
 class ClienteSimple(BaseModel):
-    id: UUID
+    id: int
     nombre: str
     activo: bool
 
@@ -66,7 +65,7 @@ class ClienteSimple(BaseModel):
 
 
 class ClienteOut(BaseModel):
-    id: UUID
+    id: int
     nombre: str
     activo: bool
     creado_en: datetime
@@ -92,8 +91,8 @@ class RecursoConfigCreate(BaseModel):
 
 
 class ConfiguracionCreate(BaseModel):
-    cliente_id: UUID
-    nombre: str
+    cliente_id: int
+    nombre: str = "Reporte manual"
     periodo_mes: int
     periodo_anio: int
     gravedad: GravedadEnum = GravedadEnum.ambas
@@ -109,7 +108,7 @@ class ConfiguracionCreate(BaseModel):
 
 
 class RecursoConfigOut(BaseModel):
-    id: UUID
+    id: int
     resource_id_azure: str
     nombre: str
     tipo: TipoRecursoEnum
@@ -118,8 +117,8 @@ class RecursoConfigOut(BaseModel):
 
 
 class ConfiguracionOut(BaseModel):
-    id: UUID
-    cliente_id: UUID
+    id: int
+    cliente_id: int
     nombre: str
     periodo_mes: int
     periodo_anio: int
@@ -133,40 +132,45 @@ class ConfiguracionOut(BaseModel):
 
 # ── Programacion ──────────────────────────────────────────────────────────────
 class ProgramacionCreate(BaseModel):
-    configuracion_id: UUID
+    disparador_id: Optional[int] = None
+    configuracion_id: Optional[int] = None
     fecha_inicio: datetime
-    frecuencia: str = "mensual"
+    frecuencia: str = "Mensual"
 
 
 class ProgramacionOut(BaseModel):
-    id: UUID
-    configuracion_id: UUID
+    id: int
+    disparador_id: int
     fecha_inicio: datetime
     frecuencia: str
     proxima_ejecucion: datetime
     activa: bool
-    creado_en: datetime
+    creado_en: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
 
 # ── Reporte ───────────────────────────────────────────────────────────────────
 class ReporteCreate(BaseModel):
-    configuracion_id: UUID
+    cliente_id: int
+    periodo_mes: int
+    periodo_anio: int
+    gravedad: GravedadEnum = GravedadEnum.ambas
+    recursos: list[RecursoConfigCreate]
 
 
 class ReporteOut(BaseModel):
-    id: UUID
-    configuracion_id: UUID
-    usuario_id: UUID
+    id: int
+    disparador_id: int
+    usuario_id: int
     periodo_mes: int
     periodo_anio: int
     inicio_generacion: Optional[datetime]
     fin_generacion: Optional[datetime]
-    tiempo_generacion_seg: Optional[float]
-    url_pdf: Optional[str]
-    estado: EstadoReporteEnum
-    creado_en: datetime
+    tiempo_generacion_seg: Optional[float] = None
+    url_docx: Optional[str]
+    estado: EstadoReporteEnum | str
+    creado_en: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
