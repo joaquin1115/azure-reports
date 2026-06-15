@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, field_validator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from app.models.models import RolEnum, GravedadEnum, TipoRecursoEnum, EstadoReporteEnum
 
@@ -117,6 +117,13 @@ class ReporteCreate(ReporteBaseCreate):
 class ProgramacionCreate(ReporteBaseCreate):
     fecha_inicio: datetime
     frecuencia: str = "Mensual"
+
+    @field_validator("fecha_inicio")
+    @classmethod
+    def normalizar_fecha_inicio(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            return v
+        return v.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 class ProgramacionOut(BaseModel):
