@@ -1,0 +1,368 @@
+@startuml secuencia_CU01_generar_reporte
+skinparam sequence {
+  ArrowColor #2E74B5
+  LifeLineBorderColor #AAAAAA
+  ParticipantBorderColor #2E74B5
+  ParticipantBackgroundColor #EBF3FB
+  ParticipantFontName Arial
+  ActorFontName Arial
+  FontName Arial
+}
+
+actor "Especialista" as esp
+participant "CI: Generar\nReporte" as ci
+participant "CC: Cliente\nController" as ccCliente
+participant "CC: Reporte\nController" as ccReporte
+participant "CS: Reporte\nService" as srv
+participant ":Usuario" as tUsuario
+participant ":Cliente" as tCliente
+participant ":Tenant" as tTenant
+participant ":Disparador" as tDisparador
+participant ":Recurso" as tRecurso
+participant ":Reporte" as tReporte
+collections "Azure Resource\nManager" as arm
+participant "Azure Advisor\nAPI" as advisor
+collections "Azure Blob\nStorage" as blob
+
+esp -> ci : Seleccionar cliente
+ci -> ccCliente : Obtener recursos del cliente
+ccCliente -> tTenant : findByCliente(cliente_id)
+tTenant --> ccCliente : [tenants]
+loop Por tenant y subscription
+  ccCliente -> arm : listar subscriptions / obtener recursos
+  arm --> ccCliente : [VM, SQL DB, ASP]
+end
+ccCliente --> ci : Mostrar recursos disponibles
+
+esp -> ci : Seleccionar recursos, período y gravedad
+esp -> ci : Iniciar generación
+ci -> ccReporte : POST /reportes
+ccReporte -> tUsuario : findByCorreo(usuario autenticado)
+tUsuario --> ccReporte : [usuario]
+ccReporte -> srv : iniciar_generacion_manual()
+srv -> tCliente : get(cliente_id)
+tCliente --> srv : [cliente]
+srv -> tDisparador : insert(recurrencia Única, activo=false)
+tDisparador --> srv : [disparador_id]
+loop Por recurso seleccionado
+  srv -> tRecurso : insert(azure_resource_id, disparador_id)
+  tRecurso --> srv : [ok]
+end
+srv -> tReporte : insert(estado=Pendiente, período)
+tReporte --> srv : [reporte_id]
+srv --> ccReporte : [reporte pendiente]
+ccReporte --> ci : Aceptar solicitud (202 + reporte_id)
+
+ci -> ccReporte : Suscribirse a SSE /reportes/sse/{reporte_id}
+ccReporte --> ci : Canal de eventos abierto
+
+note over srv : Procesamiento en segundo plano
+
+srv -> tReporte : update(estado=En proceso, inicio_generacion)
+srv --> ci : SSE progreso: análisis de métricas iniciado
+srv -> tCliente : get(cliente_id)
+srv -> tTenant : findByCliente(cliente_id)
+tTenant --> srv : [tenants]
+loop Por recurso seleccionado
+  srv -> arm : Obtener métricas por recurso
+  arm --> srv : [series de métricas]
+  note over srv : Calcular promedio, mínimo, máximo, p95\ny redactar observaciones
+end
+srv --> ci : SSE progreso: análisis de métricas completado
+srv --> ci : SSE progreso: recomendaciones iniciado
+srv -> arm : listar subscriptions del tenant
+arm --> srv : [subscription_ids]
+loop Por subscription
+  srv -> advisor : Obtener recomendaciones por gravedad
+  advisor --> srv : [recomendaciones]
+end
+srv --> ci : SSE progreso: recomendaciones completado
+srv --> ci : SSE progreso: preparación documento iniciado
+note over srv : Generar documento Word con tablas,\ngráficos, observaciones y recomendaciones
+srv -> blob : Almacenar DOCX
+blob --> srv : [nombre_blob]
+srv -> tReporte : update(estado=Completado, url_docx, fin_generacion)
+tReporte --> srv : [ok]
+srv --> ci : SSE completado
+ci -> esp : Mostrar notificación flotante
+
+esp -> ci : Descargar reporte
+ci -> ccReporte : GET /reportes/{reporte_id}/descargar
+ccReporte -> tReporte : get(reporte_id)
+tReporte --> ccReporte : [reporte completado + url_docx]
+ccReporte -> blob : Generar enlace temporal (SAS URL)
+blob --> ccReporte : [url_descarga]
+ccReporte --> ci : Entregar enlace de descarga
+ci --> esp : Abrir/descargar archivo DOCX
+
+@enduml
+
+@startuml secuencia_CU02_programar_reporte
+skinparam sequence {
+  ArrowColor #2E74B5
+  LifeLineBorderColor #AAAAAA
+  ParticipantBorderColor #2E74B5
+  ParticipantBackgroundColor #EBF3FB
+  ParticipantFontName Arial
+  ActorFontName Arial
+  FontName Arial
+}
+
+actor "Especialista" as esp
+participant "CI: Programar\nReporte" as ci
+participant "CC: Cliente\nController" as ccCliente
+participant "CC: Programacion\nController" as ccProg
+participant "CC: Reporte\nController" as ccReporte
+participant ":Usuario" as tUsuario
+participant ":Tenant" as tTenant
+participant ":Disparador" as tDisparador
+participant ":Recurso" as tRecurso
+collections "Azure Resource\nManager" as arm
+participant "Azure Function\n(timer trigger)" as fn
+
+esp -> ci : Acceder a programar reporte
+ci -> ccCliente : Obtener clientes
+ccCliente --> ci : [clientes]
+ci -> ccProg : Obtener programaciones mensuales
+ccProg -> tDisparador : findMensuales()
+tDisparador --> ccProg : [programaciones]
+ccProg --> ci : Mostrar programaciones existentes
+
+esp -> ci : Seleccionar cliente
+ci -> ccCliente : Obtener recursos del cliente
+ccCliente -> tTenant : findByCliente(cliente_id)
+tTenant --> ccCliente : [tenants]
+loop Por tenant y subscription
+  ccCliente -> arm : listar subscriptions / obtener recursos
+  arm --> ccCliente : [recursos]
+end
+ccCliente --> ci : Mostrar recursos disponibles
+
+esp -> ci : Seleccionar recursos, gravedad y fecha de inicio
+esp -> ci : Confirmar programación mensual
+ci -> ccProg : POST /programaciones
+ccProg -> tUsuario : findByCorreo(usuario autenticado)
+tUsuario --> ccProg : [usuario]
+ccProg -> tDisparador : insert(recurrencia=Mensual, activo=true, proxima_ejecucion)
+tDisparador --> ccProg : [disparador_id]
+loop Por recurso seleccionado
+  ccProg -> tRecurso : insert(azure_resource_id, disparador_id)
+  tRecurso --> ccProg : [ok]
+end
+ccProg --> ci : Confirmar registro
+ci --> esp : Mostrar confirmación y refrescar listado
+
+== En cada ejecución del timer ==
+
+fn -> ccProg : GET /programaciones
+ccProg -> tDisparador : findMensuales()
+tDisparador --> ccProg : [programaciones]
+ccProg --> fn : [programaciones]
+fn -> fn : Filtrar activas con proxima_ejecucion vencida
+loop Por programación vencida (con reintentos)
+  fn -> ccReporte : POST /reportes/disparadores/{id}/ejecutar
+  ccReporte -> tDisparador : get(disparador_id)
+  tDisparador --> ccReporte : [disparador]
+  ccReporte -> ccReporte : Calcular período anterior
+  ccReporte --> fn : 202 reporte pendiente
+  note over ccReporte : Inicia flujo de generación\ndel CU-01 en segundo plano
+end
+
+opt Desactivar programación
+  esp -> ci : Desactivar programación
+  ci -> ccProg : PATCH /programaciones/{id}/desactivar
+  ccProg -> tDisparador : update(activo=false)
+  tDisparador --> ccProg : [ok]
+  ccProg --> ci : Programación inactiva
+  ci --> esp : Mostrar programación desactivada
+end
+
+@enduml
+
+@startuml secuencia_CU03_consultar_reportes
+skinparam sequence {
+  ArrowColor #2E74B5
+  LifeLineBorderColor #AAAAAA
+  ParticipantBorderColor #2E74B5
+  ParticipantBackgroundColor #EBF3FB
+  ParticipantFontName Arial
+  ActorFontName Arial
+  FontName Arial
+}
+
+actor "Especialista" as esp
+participant "CI: Historial\nReportes" as ci
+participant "CC: Reporte\nController" as cc
+participant ":Disparador" as tDisparador
+participant ":Reporte" as tReporte
+collections "Azure Blob\nStorage" as blob
+
+esp -> ci : Acceder al historial de reportes
+ci -> cc : GET /reportes
+cc -> tReporte : findAll(order by inicio_generacion desc)
+tReporte -> tDisparador : join cliente, recursos, recurrencia y tipo recomendación
+tDisparador --> tReporte : [metadata]
+tReporte --> cc : [lista de reportes]
+cc --> ci : Mostrar reportes disponibles
+
+esp -> ci : Filtrar por cliente, mes y/o año
+ci -> cc : GET /reportes?cliente_id&periodo_mes&periodo_anio
+cc -> tReporte : findByFiltros()
+tReporte -> tDisparador : join cliente
+tDisparador --> tReporte : [metadata]
+tReporte --> cc : [reportes filtrados]
+cc --> ci : Mostrar reportes filtrados
+
+esp -> ci : Solicitar descarga de reporte completado
+ci -> cc : GET /reportes/{reporte_id}/descargar
+cc -> tReporte : get(reporte_id)
+tReporte --> cc : [estado + url_docx]
+alt Reporte completado
+  cc -> blob : Generar enlace temporal (SAS URL)
+  blob --> cc : [url_descarga]
+  cc --> ci : Entregar enlace de descarga
+  ci --> esp : Descargar archivo DOCX
+else Pendiente, en proceso, error o inexistente
+  cc --> ci : Error 400/404
+  ci --> esp : Mostrar error
+end
+
+@enduml
+
+@startuml secuencia_CU04_gestionar_usuarios
+skinparam sequence {
+  ArrowColor #2E74B5
+  LifeLineBorderColor #AAAAAA
+  ParticipantBorderColor #2E74B5
+  ParticipantBackgroundColor #EBF3FB
+  ParticipantFontName Arial
+  ActorFontName Arial
+  FontName Arial
+}
+
+actor "Administrador" as adm
+participant "CI: Gestión\nUsuarios" as ci
+participant "CC: Usuario\nController" as cc
+participant ":Rol" as tRol
+participant ":Usuario" as tUsuario
+
+adm -> ci : Acceder a gestión de usuarios
+ci -> cc : GET /usuarios
+cc -> tUsuario : findAll(order by nombre)
+tUsuario -> tRol : join rol
+tRol --> tUsuario : [rol]
+tUsuario --> cc : [lista de usuarios]
+cc --> ci : Mostrar usuarios registrados
+
+alt Registrar usuario
+  adm -> ci : Ingresar correo, nombre y rol
+  ci -> cc : POST /usuarios
+  cc -> tUsuario : findByCorreo(correo)
+  tUsuario --> cc : [sin duplicados]
+  cc -> tRol : getRolId(rol)
+  tRol --> cc : [rol_id]
+  cc -> tUsuario : insertUsuario(correo, nombre, rol_id)
+  tUsuario --> cc : [usuario]
+  cc --> ci : Confirmar registro
+  ci --> adm : Mostrar usuario registrado
+
+else Editar usuario
+  adm -> ci : Seleccionar usuario y modificar nombre, rol o estado
+  ci -> cc : PUT /usuarios/{id}
+  cc -> tUsuario : get(usuario_id)
+  tUsuario --> cc : [usuario]
+  opt Cambia rol
+    cc -> tRol : getRolId(rol)
+    tRol --> cc : [rol_id]
+  end
+  cc -> tUsuario : updateUsuario(nombre, rol_id, activo)
+  tUsuario --> cc : [usuario actualizado]
+  cc --> ci : Confirmar actualización
+  ci --> adm : Mostrar cambios guardados
+
+else Desactivar usuario
+  adm -> ci : Seleccionar usuario y confirmar desactivación
+  ci -> cc : PATCH /usuarios/{id}/desactivar
+  cc -> tUsuario : get(usuario_id)
+  tUsuario --> cc : [usuario]
+  alt Es el único administrador activo
+    cc --> ci : Error 409
+    ci --> adm : Mostrar restricción
+  else Desactivación permitida
+    cc -> tUsuario : updateUsuario(activo=false)
+    tUsuario --> cc : [usuario inactivo]
+    cc --> ci : Confirmar desactivación
+    ci --> adm : Mostrar lista actualizada
+  end
+end
+@enduml
+
+@startuml secuencia_CU05_gestionar_clientes
+skinparam sequence {
+  ArrowColor #2E74B5
+  LifeLineBorderColor #AAAAAA
+  ParticipantBorderColor #2E74B5
+  ParticipantBackgroundColor #EBF3FB
+  ParticipantFontName Arial
+  ActorFontName Arial
+  FontName Arial
+}
+
+actor "Administrador" as adm
+participant "CI: Gestión\nClientes" as ci
+participant "CC: Cliente\nController" as cc
+participant ":Cliente" as tCliente
+participant ":Tenant" as tTenant
+
+adm -> ci : Acceder a gestión de clientes
+ci -> cc : GET /clientes
+cc -> tCliente : findAll(order by nombre)
+tCliente -> tTenant : join tenants
+tTenant --> tCliente : [tenants]
+tCliente --> cc : [lista de clientes]
+cc --> ci : Mostrar clientes registrados
+
+alt Registrar cliente
+  adm -> ci : Ingresar nombre y tenants del cliente
+  ci -> cc : POST /clientes
+  cc -> cc : Validar tenants únicos en la solicitud
+  cc -> tCliente : insertCliente(nombre)
+  tCliente --> cc : [cliente_id]
+  loop Por tenant informado
+    cc -> tTenant : insertTenant(cliente_id, tenant_id_azure, nombre)
+    tTenant --> cc : [ok]
+  end
+  cc --> ci : Confirmar registro
+  ci --> adm : Mostrar cliente registrado
+
+else Editar cliente
+  adm -> ci : Seleccionar cliente y modificar nombre, estado o tenants
+  ci -> cc : PUT /clientes/{id}
+  cc -> tCliente : get(cliente_id)
+  tCliente --> cc : [cliente]
+  opt Cambian tenants
+    cc -> cc : Validar tenants únicos en la solicitud
+    cc -> tTenant : deleteTenants(cliente_id)
+    tTenant --> cc : [ok]
+    loop Por tenant informado
+      cc -> tTenant : insertTenant(cliente_id, tenant_id_azure, nombre)
+      tTenant --> cc : [ok]
+    end
+  end
+  cc -> tCliente : updateCliente(nombre, activo)
+  tCliente --> cc : [cliente actualizado]
+  cc --> ci : Confirmar actualización
+  ci --> adm : Mostrar cambios guardados
+
+else Desactivar cliente
+  adm -> ci : Seleccionar cliente y confirmar desactivación
+  ci -> cc : PATCH /clientes/{id}/desactivar
+  cc -> tCliente : get(cliente_id)
+  tCliente --> cc : [cliente]
+  cc -> tCliente : updateCliente(activo=false)
+  tCliente --> cc : [cliente inactivo]
+  cc --> ci : Confirmar desactivación
+  ci --> adm : Mostrar lista actualizada
+end
+
+@enduml
