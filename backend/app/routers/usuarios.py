@@ -57,14 +57,18 @@ async def actualizar_usuario(usuario_id: int, body: UsuarioUpdate, db: AsyncSess
     return _usuario_out(usuario)
 
 
-@router.delete("/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def eliminar_usuario(usuario_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_admin())):
+@router.patch("/{usuario_id}/desactivar", response_model=UsuarioOut)
+async def desactivar_usuario(usuario_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_admin())):
     usuario = await db.get(Usuario, usuario_id, options=[selectinload(Usuario.rol)])
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if not usuario.activo:
+        return _usuario_out(usuario)
     if usuario.rol.nombre == "Administrador":
         admins = await db.execute(select(Usuario).join(Usuario.rol).where(Rol.nombre == "Administrador", Usuario.activo == True))
         if len(admins.scalars().all()) <= 1:
-            raise HTTPException(status_code=409, detail="No se puede eliminar al único administrador activo del sistema")
-    await db.delete(usuario)
+            raise HTTPException(status_code=409, detail="No se puede desactivar al único administrador activo del sistema")
+    usuario.activo = False
     await db.commit()
+    await db.refresh(usuario, attribute_names=["rol"])
+    return _usuario_out(usuario)
