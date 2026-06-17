@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Modal, Form, Input, Popconfirm, Tag, Empty, Space } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, MinusCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, PauseCircleOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import api from "../services/apiClient";
 import { useNotifStore } from "../store/store";
@@ -54,14 +54,14 @@ export function ClientesPage() {
     }
   };
 
-  const eliminar = async (id: string) => {
+  const desactivar = async (id: string) => {
     try {
-      await api.delete(`/clientes/${id}`);
-      mostrar("Cliente eliminado", "info");
+      await api.patch(`/clientes/${id}/desactivar`);
+      mostrar("Cliente desactivado", "info");
       await cargar();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      mostrar(msg ?? "Error al eliminar el cliente", "error");
+      mostrar(msg ?? "Error al desactivar el cliente", "error");
     }
   };
 
@@ -83,15 +83,17 @@ export function ClientesPage() {
       render: (_, r) => (
         <div style={{ display: "flex", gap: 8 }}>
           <Button size="small" icon={<EditOutlined />} onClick={() => abrirModal(r)} />
-          <Popconfirm
-            title="¿Eliminar este cliente?"
-            description="Solo es posible si no tiene reportes en el historial."
-            okText="Sí, eliminar"
-            cancelText="Cancelar"
-            onConfirm={() => eliminar(r.id)}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+          {r.activo && (
+            <Popconfirm
+              title="¿Desactivar este cliente?"
+              description="El cliente quedará inactivo, pero se conservará la trazabilidad de sus reportes."
+              okText="Sí, desactivar"
+              cancelText="Cancelar"
+              onConfirm={() => desactivar(r.id)}
+            >
+              <Button size="small" danger icon={<PauseCircleOutlined />} />
+            </Popconfirm>
+          )}
         </div>
       ) },
   ];

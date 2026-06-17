@@ -335,14 +335,15 @@ def _grafico_bytes(
 
     return buf
 
-def _descripcion_rendimiento(cpu: ResultadoMetrica | None, memoria: ResultadoMetrica | None) -> str:
-    if not cpu and not memoria:
-        return "Sin datos"
-    picos = False
-    for m in (cpu, memoria):
-        if m and ((m.maximo - m.minimo) >= 40 or m.maximo >= 85):
-            picos = True
-    return "Performance con picos de uso" if picos else "Performance estable"
+def _detalle_observaciones(metricas: list[tuple[str, ResultadoMetrica | None]]) -> str:
+    detalles = []
+    for titulo, metrica in metricas:
+        if not metrica:
+            continue
+        observaciones = [obs.strip() for obs in (metrica.observaciones or []) if obs and obs.strip()]
+        if observaciones:
+            detalles.append(f"{titulo}: {' '.join(observaciones)}")
+    return " | ".join(detalles) if detalles else "Sin observaciones"
 
 
 def _buscar_metrica(metricas: list[ResultadoMetrica], aliases: list[str]) -> ResultadoMetrica | None:
@@ -393,13 +394,13 @@ def _metricas_por_tipo(tipo: str, metricas: list[ResultadoMetrica]) -> list[tupl
     return [(m.nombre, m) for m in metricas]
 
 
-def _agregar_tabla_tipo(doc: Document, titulo: str, filas: list[dict]):
+def _agregar_tabla_tipo(doc: Document, titulo: str, filas: list[dict], titulos_metricas: list[str]):
     _add_heading(doc, titulo, 2)
     tabla = doc.add_table(rows=1, cols=4)
     hdr = tabla.rows[0].cells
     hdr[0].text = "Recurso"
-    hdr[1].text = "Métrica principal (Mínimo – Máximo)"
-    hdr[2].text = "Métrica secundaria (Mínimo – Máximo)"
+    hdr[1].text = f"{titulos_metricas[0]} (Mínimo – Máximo)" if titulos_metricas else "Métrica (Mínimo – Máximo)"
+    hdr[2].text = f"{titulos_metricas[1]} (Mínimo – Máximo)" if len(titulos_metricas) > 1 else "No aplica"
     hdr[3].text = "Detalle del rendimiento"
     for fila in filas:
         row = tabla.add_row().cells
@@ -487,6 +488,10 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
     filas_asp = []
     filas_db = []
     filas_otros = []
+    titulos_vm = []
+    titulos_asp = []
+    titulos_db = []
+    titulos_otros = []
 
     for r in resultados_por_recurso:
         tipo = _tipo_recurso(r.get("tipo", ""))
@@ -494,29 +499,34 @@ def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuar
         metricas_tipo = _metricas_por_tipo(tipo, metricas)
         principal = metricas_tipo[0][1] if metricas_tipo else None
         secundaria = metricas_tipo[1][1] if len(metricas_tipo) > 1 else None
+        titulos_metricas = [titulo for titulo, _ in metricas_tipo]
         fila = {
             "recurso": r.get("nombre", ""),
             "principal": _fmt_rango(principal),
             "secundaria": _fmt_rango(secundaria) if secundaria else "No aplica",
-            "detalle": _descripcion_rendimiento(principal, secundaria),
+            "detalle": _detalle_observaciones(metricas_tipo),
         }
         if tipo == "VM":
             filas_vm.append(fila)
+            titulos_vm = titulos_vm or titulos_metricas
         elif tipo == "ASP":
             filas_asp.append(fila)
+            titulos_asp = titulos_asp or titulos_metricas
         elif tipo == "DB":
             filas_db.append(fila)
+            titulos_db = titulos_db or titulos_metricas
         else:
             filas_otros.append(fila)
+            titulos_otros = titulos_otros or titulos_metricas
 
     if filas_vm:
-        _agregar_tabla_tipo(doc, "Máquinas Virtuales", filas_vm)
+        _agregar_tabla_tipo(doc, "Máquinas Virtuales", filas_vm, titulos_vm)
     if filas_asp:
-        _agregar_tabla_tipo(doc, "App Service Plans", filas_asp)
+        _agregar_tabla_tipo(doc, "App Service Plans", filas_asp, titulos_asp)
     if filas_db:
-        _agregar_tabla_tipo(doc, "Bases de Datos SQL", filas_db)
+        _agregar_tabla_tipo(doc, "Bases de Datos SQL", filas_db, titulos_db)
     if filas_otros:
-        _agregar_tabla_tipo(doc, "Otros Recursos", filas_otros)
+        _agregar_tabla_tipo(doc, "Otros Recursos", filas_otros, titulos_otros)
 
     for r in resultados_por_recurso:
         tipo = _tipo_recurso(r.get("tipo", ""))

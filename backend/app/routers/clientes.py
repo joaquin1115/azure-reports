@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.auth.dependencies import require_admin, require_especialista
-from app.models.models import Cliente, Tenant, Reporte, Disparador
+from app.models.models import Cliente, Tenant
 from app.schemas.schemas import ClienteCreate, ClienteUpdate, ClienteOut, RecursoAzure, TenantCreate
 from app.integrations.azure_rm import listar_subscriptions_por_tenant, obtener_recursos_por_tenant
 
@@ -67,16 +67,13 @@ async def actualizar_cliente(cliente_id: int, body: ClienteUpdate, db: AsyncSess
     return await _commit_cliente(db, cliente_id)
 
 
-@router.delete("/{cliente_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def eliminar_cliente(cliente_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_admin())):
+@router.patch("/{cliente_id}/desactivar", response_model=ClienteOut)
+async def desactivar_cliente(cliente_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_admin())):
     cliente = await db.get(Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    reportes = await db.execute(select(Reporte).join(Reporte.disparador).where(Disparador.cliente_id == cliente_id).limit(1))
-    if reportes.first():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No se puede eliminar un cliente con reportes en el historial. Archívelo en su lugar.")
-    await db.delete(cliente)
-    await db.commit()
+    cliente.activo = False
+    return await _commit_cliente(db, cliente_id)
 
 
 @router.get("/{cliente_id}/recursos", response_model=list[RecursoAzure])

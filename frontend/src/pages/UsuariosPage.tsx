@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, Empty } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, PauseCircleOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import api from "../services/apiClient";
 import { useNotifStore } from "../store/store";
@@ -49,14 +49,14 @@ export function UsuariosPage() {
     }
   };
 
-  const eliminar = async (id: string) => {
+  const desactivar = async (id: string) => {
     try {
-      await api.delete(`/usuarios/${id}`);
-      mostrar("Usuario eliminado", "info");
+      await api.patch(`/usuarios/${id}/desactivar`);
+      mostrar("Usuario desactivado", "info");
       await cargar();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      mostrar(msg ?? "Error al eliminar el usuario", "error");
+      mostrar(msg ?? "Error al desactivar el usuario", "error");
     }
   };
 
@@ -64,12 +64,17 @@ export function UsuariosPage() {
     { title: "Nombre", dataIndex: "nombre", key: "nombre", sorter: (a, b) => a.nombre.localeCompare(b.nombre) },
     { title: "Correo", dataIndex: "correo", key: "correo" },
     { title: "Rol", dataIndex: "rol", key: "rol", render: (v) => <Tag color={v === "admin" ? "#1987af" : "#64748b"}>{v}</Tag> },
-    { title: "", key: "acc", width: 100, render: (_, r) => (
+    { title: "Estado", dataIndex: "activo", key: "activo", render: (v) => v
+      ? <span className="badge-estado badge-completado">Activo</span>
+      : <span className="badge-estado badge-error">Inactivo</span> },
+    { title: "", key: "acc", width: 120, render: (_, r) => (
       <div style={{ display: "flex", gap: 8 }}>
         <Button size="small" icon={<EditOutlined />} onClick={() => abrirModal(r)} />
-        <Popconfirm title="¿Eliminar este usuario?" okText="Sí, eliminar" cancelText="Cancelar" onConfirm={() => eliminar(r.id)}>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        {r.activo && (
+          <Popconfirm title="¿Desactivar este usuario?" okText="Sí, desactivar" cancelText="Cancelar" onConfirm={() => desactivar(r.id)}>
+            <Button size="small" danger icon={<PauseCircleOutlined />} />
+          </Popconfirm>
+        )}
       </div>
     ) },
   ];
