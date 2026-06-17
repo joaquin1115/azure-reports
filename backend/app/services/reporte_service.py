@@ -18,6 +18,7 @@ from app.models.models import (
 )
 from app.integrations import azure_rm, azure_advisor, blob_storage
 from app.services.analisis_service import analizar_metrica
+from app.services.grafico_service import generar_grafico_bytes
 from app.services.word_service import generar_word
 
 _sse_subscribers: dict[str, asyncio.Queue] = {}
@@ -161,14 +162,18 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                     periodo_anio=reporte.periodo_anio
                 )
 
-                metricas_analizadas = [
-                    analizar_metrica(
+                metricas_analizadas = []
+                for nombre, datos in metricas_raw.items():
+                    metrica_analizada = analizar_metrica(
                         nombre=nombre,
                         valores=datos["values"],
                         fechas=datos["dates"]
                     )
-                    for nombre, datos in metricas_raw.items()
-                ]
+                    metrica_analizada.grafico_bytes = generar_grafico_bytes(
+                        metrica_analizada,
+                        tipo_recurso.value if hasattr(tipo_recurso, "value") else str(tipo_recurso),
+                    )
+                    metricas_analizadas.append(metrica_analizada)
 
                 resultados_por_recurso.append({
                     "nombre": recurso.azure_resource_id.split("/")[-1],
