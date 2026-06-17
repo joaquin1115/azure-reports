@@ -18,7 +18,6 @@ async def obtener_recomendaciones(
     client_secret: str | None = None,
 ) -> list[dict]:
     token = await _get_access_token(
-        tenant_id=tenant_id,
         client_id=client_id,
         client_secret=client_secret,
     )

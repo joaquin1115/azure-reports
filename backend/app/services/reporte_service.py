@@ -139,11 +139,6 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
 
             disparador = reporte.disparador
             cliente = await db.get(Cliente, disparador.cliente_id)
-            tenants_result = await db.execute(select(Tenant).where(Tenant.cliente_id == cliente.cliente_id))
-            tenants = tenants_result.scalars().all()
-            tenant = tenants[0] if tenants else None
-            if not tenant:
-                raise ValueError("El cliente no tiene tenants configurados")
 
             resultados_por_recurso = []
 
@@ -177,10 +172,26 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
 
             gravedad = {"Alta": GravedadEnum.alta, "Media": GravedadEnum.media, "Baja": GravedadEnum.ambas}[disparador.tipo_recomendacion.nombre]
             recomendaciones = []
-            subscription_ids = await azure_rm.listar_subscriptions_por_tenant(tenant.tenant_id_azure)
-            for subscription_id in subscription_ids:
-                recomendaciones.extend(await azure_advisor.obtener_recomendaciones(subscription_id=subscription_id, gravedad=gravedad, tenant_id=tenant.tenant_id_azure))
 
+            tenants_result = await db.execute(select(Tenant).where(Tenant.cliente_id == cliente.cliente_id))
+            tenants = tenants_result.scalars().all()
+            if not tenants:
+                raise ValueError("El cliente no tiene tenants configurados")
+            
+            for tenant in tenants:
+                subscription_ids = await azure_rm.listar_subscriptions_por_tenant(
+                    tenant.tenant_id_azure
+                )
+
+                for subscription_id in subscription_ids:
+                    recomendaciones.extend(
+                        await azure_advisor.obtener_recomendaciones(
+                            subscription_id=subscription_id,
+                            gravedad=gravedad,
+                            tenant_id=tenant.tenant_id_azure,
+                        )
+                    )
+            
             _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "completada", "mensaje": "Redacción de recomendaciones completada"})
             _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "preparacion_documento", "estado_etapa": "iniciada", "mensaje": "Preparación del documento en progreso"})
 
