@@ -15,6 +15,7 @@ class ResultadoMetrica:
     observaciones: list[str]
     valores: list[float]
     fechas: list[str]
+    grafico_bytes: bytes | None = None
 
 
 def calcular_p95(valores: list[float]) -> float:
