@@ -476,7 +476,8 @@ def _consolidar_recomendaciones(recomendaciones: list[dict]) -> list[dict]:
     return out
 
 
-def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuario_nombre: str, recomendaciones: list[dict], resultados_por_recurso: list[dict]) -> bytes:
+def generar_word(cliente_nombre: str, periodo_mes: int, periodo_anio: int, usuario_nombre: str,
+    recomendaciones: list[dict], resultados_por_recurso: list[dict]) -> bytes:
     doc = Document()
     _add_heading(doc, "REPORTE DE CONSUMO DE AZURE", 1)
     _add_paragraph(doc, f"Cliente: {cliente_nombre}")

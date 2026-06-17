@@ -30,11 +30,19 @@ async def listar_usuarios(db: AsyncSession = Depends(get_db), current_user: dict
 
 
 @router.post("", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
-async def crear_usuario(body: UsuarioCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_admin())):
+async def crear_usuario(
+        body: UsuarioCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: dict = Depends(require_admin())
+    ):
     existing = await db.execute(select(Usuario).where(Usuario.correo == body.correo))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Ya existe un usuario con ese correo")
-    usuario = Usuario(correo=body.correo, nombre=body.nombre, rol_id=await get_rol_id(db, {"admin": "Administrador", "especialista": "Especialista"}[body.rol.value]))
+    usuario = Usuario(
+        correo=body.correo, nombre=body.nombre, rol_id=await get_rol_id(
+        db, {"admin": "Administrador", "especialista": "Especialista"}[body.rol.value]
+        )
+    )
     db.add(usuario)
     await db.commit()
     await db.refresh(usuario, attribute_names=["rol"])

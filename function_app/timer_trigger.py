@@ -11,7 +11,7 @@ async def _ejecutar():
     then invokes report generation for each one.
     """
     backend_url = "https://azurereport.azurewebsites.net/api"
-    # In production, use Managed Identity or Key Vault to retrieve the function API key
+
     api_key = "FUNCTION_API_KEY"
 
     headers = {"x-functions-key": api_key, "Content-Type": "application/json"}

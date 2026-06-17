@@ -204,8 +204,7 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                     recomendaciones.extend(
                         await azure_advisor.obtener_recomendaciones(
                             subscription_id=subscription_id,
-                            gravedad=gravedad,
-                            tenant_id=tenant.tenant_id_azure,
+                            gravedad=gravedad
                         )
                     )
             

@@ -11,15 +11,10 @@ GRAVEDAD_MAP = {
 
 
 async def obtener_recomendaciones(
-    subscription_id: str,
-    gravedad: GravedadEnum,
-    tenant_id: str | None = None,
-    client_id: str | None = None,
-    client_secret: str | None = None,
+    subscription_id: str, gravedad: GravedadEnum,
+    client_id: str | None = None, client_secret: str | None = None,
 ) -> list[dict]:
-    token = await _get_access_token(
-        client_id=client_id,
-        client_secret=client_secret,
+    token = await _get_access_token(client_id=client_id, client_secret=client_secret,
     )
     niveles = GRAVEDAD_MAP[gravedad]
     url = (
@@ -30,10 +25,7 @@ async def obtener_recomendaciones(
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             url,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept-Language": "es",
-            },
+            headers={"Authorization": f"Bearer {token}", "Accept-Language": "es"},
         )
         resp.raise_for_status()
         data = resp.json()

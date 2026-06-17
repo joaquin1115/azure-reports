@@ -45,7 +45,8 @@ async def listar_programaciones(db: AsyncSession = Depends(get_db), current_user
 
 
 @router.post("", response_model=ProgramacionOut, status_code=status.HTTP_201_CREATED)
-async def crear_programacion(body: ProgramacionCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_especialista())):
+async def crear_programacion(body: ProgramacionCreate, db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_especialista())):
     correo = current_user.get("email")
     usuario_result = await db.execute(select(Usuario).where(Usuario.correo == correo))
     usuario = usuario_result.scalar_one_or_none()
@@ -59,18 +60,22 @@ async def crear_programacion(body: ProgramacionCreate, db: AsyncSession = Depend
         activo=True,
         usuario_id=usuario.usuario_id,
         cliente_id=body.cliente_id,
-        tipo_recomendacion_id=await get_tipo_recomendacion_id(db, _TIPO_RECOMENDACION_DB[body.gravedad.value]),
+        tipo_recomendacion_id=await get_tipo_recomendacion_id(
+            db, _TIPO_RECOMENDACION_DB[body.gravedad.value]),
         recurrencia_id=await get_recurrencia_id(db, "Mensual"),
     )
     db.add(disparador)
     await db.flush()
     for recurso in body.recursos:
-        db.add(Recurso(azure_resource_id=recurso.resource_id_azure, disparador_id=disparador.disparador_id))
+        db.add(Recurso(
+            azure_resource_id=recurso.resource_id_azure,disparador_id=disparador.disparador_id))
     await db.commit()
 
     result = await db.execute(
         select(Disparador)
-        .options(selectinload(Disparador.cliente), selectinload(Disparador.recursos), selectinload(Disparador.tipo_recomendacion), selectinload(Disparador.recurrencia))
+        .options(
+            selectinload(Disparador.cliente), selectinload(Disparador.recursos),
+            selectinload(Disparador.tipo_recomendacion), selectinload(Disparador.recurrencia))
         .where(Disparador.disparador_id == disparador.disparador_id)
     )
     return _programacion_out(result.scalar_one())

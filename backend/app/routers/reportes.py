@@ -110,8 +110,20 @@ async def sse_reporte(reporte_id: int, current_user: dict = Depends(require_espe
 
 
 @router.get("", response_model=list[ReporteOut])
-async def listar_reportes(cliente_id: int | None = None, periodo_mes: int | None = None, periodo_anio: int | None = None, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_especialista())):
-    query = select(Reporte).join(Reporte.disparador).options(selectinload(Reporte.disparador).selectinload(Disparador.cliente), selectinload(Reporte.disparador).selectinload(Disparador.recursos), selectinload(Reporte.disparador).selectinload(Disparador.tipo_recomendacion), selectinload(Reporte.disparador).selectinload(Disparador.recurrencia), selectinload(Reporte.estado_reporte)).order_by(Reporte.inicio_generacion.desc().nullslast())
+async def listar_reportes(
+    cliente_id: int | None = None,
+    periodo_mes: int | None = None,
+    periodo_anio: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_especialista())
+    ):
+    
+    query = select(Reporte).join(Reporte.disparador).options(
+        selectinload(Reporte.disparador).selectinload(Disparador.cliente),
+        selectinload(Reporte.disparador).selectinload(Disparador.recursos),
+        selectinload(Reporte.disparador).selectinload(Disparador.tipo_recomendacion),
+        selectinload(Reporte.disparador).selectinload(Disparador.recurrencia),
+        selectinload(Reporte.estado_reporte)).order_by(Reporte.inicio_generacion.desc().nullslast())
     if cliente_id:
         query = query.where(Disparador.cliente_id == cliente_id)
     if periodo_mes:
@@ -123,7 +135,12 @@ async def listar_reportes(cliente_id: int | None = None, periodo_mes: int | None
 
 
 @router.get("/{reporte_id}/descargar")
-async def descargar_reporte(reporte_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_especialista())):
+async def descargar_reporte(
+    reporte_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_especialista())
+    ):
+    
     reporte = await db.get(Reporte, reporte_id, options=[selectinload(Reporte.estado_reporte)])
     if not reporte:
         raise HTTPException(status_code=404, detail="Reporte no encontrado")

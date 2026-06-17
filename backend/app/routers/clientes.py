@@ -40,13 +40,20 @@ async def listar_clientes(db: AsyncSession = Depends(get_db), current_user: dict
 
 
 @router.post("", response_model=ClienteOut, status_code=status.HTTP_201_CREATED)
-async def crear_cliente(body: ClienteCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_admin())):
+async def crear_cliente(
+    body: ClienteCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin())
+    ):
     _validar_tenants_unicos(body.tenants)
     cliente = Cliente(nombre=body.nombre)
     db.add(cliente)
     await db.flush()
     for t in body.tenants:
-        db.add(Tenant(cliente_id=cliente.cliente_id, tenant_id_azure=t.tenant_id_azure, nombre=t.nombre))
+        db.add(Tenant(
+            cliente_id=cliente.cliente_id,
+            tenant_id_azure=t.tenant_id_azure,
+            nombre=t.nombre))
     return await _commit_cliente(db, cliente.cliente_id)
 
 
