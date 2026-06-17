@@ -154,8 +154,7 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                     resource_id=recurso.azure_resource_id,
                     tipo=tipo_recurso,
                     periodo_mes=reporte.periodo_mes,
-                    periodo_anio=reporte.periodo_anio,
-                    tenant_id=tenant.tenant_id_azure,
+                    periodo_anio=reporte.periodo_anio
                 )
 
                 metricas_analizadas = [

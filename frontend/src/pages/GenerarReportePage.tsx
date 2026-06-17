@@ -91,7 +91,6 @@ export function GenerarReportePage() {
 
       mostrar("Generación iniciada. Te notificaremos cuando esté lista.", "info");
 
-      // 3. Subscribe to SSE
       const token = await getToken();
       const unsub = suscribirReporte(rid, (evento) => {
         if (evento.evento === "progreso" && evento.etapa) {

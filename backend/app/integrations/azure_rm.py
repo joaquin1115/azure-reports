@@ -46,7 +46,6 @@ def _build_credentials(
 
 
 async def _get_access_token(
-    tenant_id: str | None = None,
     client_id: str | None = None,
     client_secret: str | None = None,
 ) -> str:
@@ -74,7 +73,6 @@ async def listar_subscriptions_por_tenant(
     client_secret: str | None = None,
 ) -> list[str]:
     token = await _get_access_token(
-        tenant_id=tenant_id,
         client_id=client_id,
         client_secret=client_secret,
     )
@@ -118,7 +116,6 @@ async def obtener_recursos_por_tenant(
 ) -> list[RecursoAzure]:
     """Fetches all supported resources from a subscription."""
     token = await _get_access_token(
-        tenant_id=tenant_id,
         client_id=client_id,
         client_secret=client_secret,
     )
@@ -152,7 +149,6 @@ async def obtener_metricas_recurso(
     tipo: TipoRecursoEnum,
     periodo_mes: int,
     periodo_anio: int,
-    tenant_id: str | None = None,
     client_id: str | None = None,
     client_secret: str | None = None,
 ) -> dict:
@@ -164,7 +160,6 @@ async def obtener_metricas_recurso(
     import calendar
 
     token = await _get_access_token(
-        tenant_id=tenant_id,
         client_id=client_id,
         client_secret=client_secret,
     )
@@ -236,7 +231,6 @@ async def validar_tenant(
     """Checks that ARM can obtain a token for the tenant service principal."""
     try:
         await _get_access_token(
-            tenant_id=tenant_id_azure,
             client_id=client_id,
             client_secret=client_secret,
         )
