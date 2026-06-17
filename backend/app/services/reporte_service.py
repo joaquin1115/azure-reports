@@ -125,7 +125,14 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
     from app.db.session import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
-        reporte = await db.get(Reporte, reporte_id, options=[selectinload(Reporte.disparador).selectinload(Disparador.recursos), selectinload(Reporte.disparador).selectinload(Disparador.tipo_recomendacion)])
+        reporte = await db.get(
+            Reporte,
+            reporte_id,
+            options=[
+                selectinload(Reporte.disparador).selectinload(Disparador.recursos),
+                selectinload(Reporte.disparador).selectinload(Disparador.tipo_recomendacion)
+                ]
+            )
         if not reporte:
             print(f"Reporte {reporte_id} no encontrado; se cancela la generación")
             return
@@ -135,7 +142,9 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
         await db.commit()
 
         try:
-            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas", "estado_etapa": "iniciada", "mensaje": "Análisis de métricas en progreso"})
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas",
+                "estado_etapa": "iniciada", "mensaje": "Análisis de métricas en progreso"})
 
             disparador = reporte.disparador
             cliente = await db.get(Cliente, disparador.cliente_id)
@@ -167,10 +176,18 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                     "metricas": metricas_analizadas
                 })
             
-            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas", "estado_etapa": "completada", "mensaje": "Análisis de métricas completado"})
-            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "iniciada", "mensaje": "Redacción de recomendaciones en progreso"})
+            _notificar_sse(str(reporte_id),{
+                "evento": "progreso", "reporte_id": str(reporte_id), "etapa": "analisis_metricas",
+                "estado_etapa": "completada", "mensaje": "Análisis de métricas completado"})
+            
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones",
+                "estado_etapa": "iniciada", "mensaje": "Redacción de recomendaciones en progreso"})
 
-            gravedad = {"Alta": GravedadEnum.alta, "Media": GravedadEnum.media, "Baja": GravedadEnum.ambas}[disparador.tipo_recomendacion.nombre]
+            gravedad = {
+                "Alta": GravedadEnum.alta, "Media": GravedadEnum.media, "Baja": GravedadEnum.ambas
+                }[disparador.tipo_recomendacion.nombre]
+            
             recomendaciones = []
 
             tenants_result = await db.execute(select(Tenant).where(Tenant.cliente_id == cliente.cliente_id))
@@ -192,20 +209,37 @@ async def _ejecutar_generacion(reporte_id: int, usuario_id: int):
                         )
                     )
             
-            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones", "estado_etapa": "completada", "mensaje": "Redacción de recomendaciones completada"})
-            _notificar_sse(str(reporte_id), {"evento": "progreso", "reporte_id": str(reporte_id), "etapa": "preparacion_documento", "estado_etapa": "iniciada", "mensaje": "Preparación del documento en progreso"})
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso", "reporte_id": str(reporte_id), "etapa": "redaccion_recomendaciones",
+                "estado_etapa": "completada", "mensaje": "Redacción de recomendaciones completada"})
+            
+            _notificar_sse(str(reporte_id), {
+                "evento": "progreso", "reporte_id": str(reporte_id), "etapa": "preparacion_documento",
+                "estado_etapa": "iniciada", "mensaje": "Preparación del documento en progreso"})
 
             usuario = await db.get(Usuario, usuario_id)
-            word_bytes = generar_word(cliente_nombre=cliente.nombre, periodo_mes=reporte.periodo_mes, periodo_anio=reporte.periodo_anio, usuario_nombre=usuario.nombre, recomendaciones=recomendaciones, resultados_por_recurso=resultados_por_recurso)
+            word_bytes = generar_word(
+                cliente_nombre=cliente.nombre,
+                periodo_mes=reporte.periodo_mes,
+                periodo_anio=reporte.periodo_anio,
+                usuario_nombre=usuario.nombre,
+                recomendaciones=recomendaciones,
+                resultados_por_recurso=resultados_por_recurso)
+            
             nombre_blob = f"{cliente.nombre}/{reporte.periodo_anio}-{reporte.periodo_mes:02d}/{reporte_id}.docx"
-            await blob_storage.subir_documento(word_bytes, nombre_blob, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            await blob_storage.subir_documento(
+                word_bytes, nombre_blob,"application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
             fin = datetime.utcnow()
             reporte.fin_generacion = fin
             reporte.url_docx = nombre_blob
             await _set_estado(db, reporte, EstadoReporteEnum.completado)
             await db.commit()
-            _notificar_sse(str(reporte_id), {"evento": "completado", "reporte_id": str(reporte_id), "tiempo_seg": (fin - reporte.inicio_generacion).total_seconds()})
+            
+            _notificar_sse(str(reporte_id), {
+                "evento": "completado", "reporte_id": str(reporte_id),
+                "tiempo_seg": (fin - reporte.inicio_generacion).total_seconds()})
+        
         except Exception as exc:
             await _set_estado(db, reporte, EstadoReporteEnum.error)
             reporte.error_mensaje = str(exc)
