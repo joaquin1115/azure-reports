@@ -1,0 +1,248 @@
+@startuml diagrama_componentes_azurereport
+skinparam component {
+  BackgroundColor #EBF3FB
+  BorderColor #1987AF
+  FontName Arial
+  Style uml2
+}
+skinparam package {
+  BackgroundColor #F8FAFC
+  BorderColor #AAAAAA
+  FontName Arial
+}
+skinparam node {
+  BackgroundColor #F8FAFC
+  BorderColor #AAAAAA
+  FontName Arial
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #1987AF
+}
+skinparam database {
+  BackgroundColor #F8FAFC
+  BorderColor #9CA3AF
+  FontName Arial
+}
+skinparam ArrowColor #1987AF
+skinparam FontName Arial
+skinparam linetype ortho
+
+' ── Frontend ──────────────────────────────────────────────────────────
+package "Frontend\n(React 18 / TypeScript / Ant Design)" {
+  [Página: Login]              as PLogin
+  [Página: Generar Reporte]    as PGenerar
+  [Página: Programar Reporte]  as PProgramar
+  [Página: Historial]          as PHistorial
+  [Página: Gestión Usuarios]   as PUsuarios
+  [Página: Gestión Clientes]   as PClientes
+  [Componente: AppLayout]      as CLayout
+  [Componente: Notif. Flotante] as CNotif
+  [Service: authConfig\n(MSAL)] as SAuth
+  [Service: apiClient\n(Axios + MSAL)] as SApi
+  [Service: sseService]        as SSse
+  [Store: Zustand]             as Store
+}
+
+' ── Backend ───────────────────────────────────────────────────────────
+package "Backend\n(FastAPI / Python 3.12)" {
+  package "routers" {
+    [reportes.py]        as RReportes
+    [programaciones.py]  as RProgramaciones
+    [usuarios.py]        as RUsuarios
+    [clientes.py]        as RClientes
+  }
+  package "services" {
+    [reporte_service.py\n(orquestador async + SSE)] as SReporte
+    [analisis_service.py\n(métricas y observaciones)] as SAnalisis
+    [grafico_service.py\n(matplotlib)] as SGrafico
+    [word_service.py\n(python-docx)] as SWord
+  }
+  package "integrations" {
+    [azure_rm.py\n(Resource Manager + Monitor)] as IAzureRM
+    [azure_advisor.py] as IAdvisor
+    [blob_storage.py]  as IBlob
+    [azure_translator.py] as ITranslator
+  }
+  package "auth" {
+    [dependencies.py\n(JWKS / RS256 + roles)] as Auth
+  }
+  package "db" {
+    [session.py\n(SQLAlchemy async)] as Session
+    [catalog.py\n(catálogos)] as Catalog
+    [models.py\n(modelos ORM)] as Models
+  }
+}
+
+' ── Azure Function ────────────────────────────────────────────────────
+package "Azure Function\n(timer trigger — cada hora)" {
+  [timer_trigger.py\n(scheduler)] as Scheduler
+  [httpx client\n(reintentos con backoff)] as Invoker
+}
+
+' ── Servicios externos ────────────────────────────────────────────────
+package "Servicios externos" {
+  [Azure Resource\nManager API]  as AzRM
+  [Azure Monitor\nMetrics API] as AzMonitor
+  [Azure Advisor API] as AzAdvisor
+  [Azure Blob Storage] as AzBlob
+  [Azure Translator] as AzTranslator
+  [Azure Entra ID\n(JWKS / OAuth 2.0)] as AzEntra
+  database "PostgreSQL 16" as PG
+}
+
+' ── Relaciones Frontend → Backend ─────────────────────────────────────
+PLogin     --> SAuth
+SAuth      --> SApi
+SApi       ..> RReportes       : REST / HTTPS + JWT
+SApi       ..> RProgramaciones : REST / HTTPS + JWT
+SApi       ..> RUsuarios       : REST / HTTPS + JWT
+SApi       ..> RClientes       : REST / HTTPS + JWT
+SSse       ..> RReportes       : SSE / HTTPS + JWT
+
+CLayout --> Store
+CNotif  --> Store
+PGenerar   --> SApi
+PGenerar   --> SSse
+PProgramar --> SApi
+PHistorial --> SApi
+PUsuarios  --> SApi
+PClientes  --> SApi
+
+' ── Relaciones internas Backend ───────────────────────────────────────
+RReportes       --> Auth
+RProgramaciones --> Auth
+RUsuarios       --> Auth
+RClientes       --> Auth
+
+RReportes       --> SReporte
+RProgramaciones --> Session
+RProgramaciones --> Catalog
+RUsuarios       --> Session
+RClientes       --> Session
+RClientes       --> IAzureRM
+
+SReporte --> SAnalisis
+SReporte --> SGrafico
+SReporte --> SWord
+SReporte --> IAzureRM
+SReporte --> IAdvisor
+SReporte --> IBlob
+SReporte --> Session
+SReporte --> Catalog
+SReporte --> Models
+SWord    --> ITranslator
+Auth     --> Session
+Auth     --> AzEntra : descarga JWKS
+
+' ── Integraciones → externos ──────────────────────────────────────────
+IAzureRM    ..> AzRM       : HTTPS
+IAzureRM    ..> AzMonitor  : SDK / HTTPS
+IAdvisor    ..> AzAdvisor  : HTTPS
+IBlob       ..> AzBlob     : SDK
+ITranslator ..> AzTranslator : HTTPS
+Session     ..> PG         : TCP 5432
+
+' ── Azure Function → Backend ──────────────────────────────────────────
+Scheduler --> Invoker
+Invoker   ..> RProgramaciones : GET /programaciones\nHTTPS
+Invoker   ..> RReportes       : POST /reportes/disparadores/{id}/ejecutar\nHTTPS
+
+@enduml
+
+@startuml diagrama_despliegue_azurereport
+skinparam node {
+  BackgroundColor #EBF3FB
+  BorderColor #1987AF
+  FontName Arial
+}
+skinparam artifact {
+  BackgroundColor #FFFFFF
+  BorderColor #1987AF
+  FontName Arial
+}
+skinparam database {
+  BackgroundColor #F8FAFC
+  BorderColor #9CA3AF
+  FontName Arial
+}
+skinparam cloud {
+  BackgroundColor #F0F9FF
+  BorderColor #1987AF
+  FontName Arial
+}
+skinparam ArrowColor #1987AF
+skinparam FontName Arial
+skinparam linetype ortho
+
+' ── Dispositivo del especialista ─────────────────────────────────────
+node "Dispositivo del Especialista\n(navegador web)" as Browser {
+  artifact "React SPA\n(runtime en navegador)" as SPA
+}
+
+' ── Microsoft Azure ───────────────────────────────────────────────────
+cloud "Microsoft Azure" {
+
+  node "Azure Static Web Apps\n(CDN global)" as StaticWA {
+    artifact "React SPA build\n(JS + CSS + HTML)" as SPABuild
+  }
+
+  node "Azure App Service (Linux)\ncontenedor Docker" as AppService {
+    artifact "FastAPI app\n(uvicorn)" as FastAPI
+  }
+
+  node "Azure Functions\n(timer trigger: 0 0 * * * *)" as FunctionApp {
+    artifact "function_app/timer_trigger.py\n(httpx scheduler)" as AzFunc
+  }
+
+  database "Azure Database for PostgreSQL\nFlexible Server · PostgreSQL 16" as PostgreSQL {
+    artifact "Schema AzureReport\n(tablas operativas + catálogos)" as Schema
+  }
+
+  node "Azure Blob Storage" as BlobStorage {
+    artifact "Reportes DOCX generados\n(acceso por SAS URL temporal)" as Docs
+  }
+
+  node "Azure Key Vault" as KeyVault {
+    artifact "Secrets:\nconn strings · credenciales Azure\nTranslator · Storage" as Secrets
+  }
+
+  node "Azure Container Registry" as ACR {
+    artifact "Imagen Docker backend\n(tag versionado/latest)" as DockerImg
+  }
+
+  node "Azure Entra ID" as EntraID {
+    artifact "App Registration\nJWKS · OAuth 2.0\nApp Roles" as AppReg
+  }
+
+  node "Azure Translator" as Translator {
+    artifact "Traducción de textos\npara documento" as TranslatorSvc
+  }
+}
+
+' ── APIs externas Microsoft ───────────────────────────────────────────
+cloud "APIs externas Microsoft" {
+  node "Azure Resource Manager API" as AzRM
+  node "Azure Monitor Metrics API" as AzMonitor
+  node "Azure Advisor API" as AzAdvisor
+}
+
+' ── Conexiones ────────────────────────────────────────────────────────
+Browser     --> StaticWA    : HTTPS
+StaticWA    --> Browser     : assets SPA
+SPA         --> AppService  : REST API / SSE\nHTTPS + JWT
+
+AppService  --> PostgreSQL  : TCP 5432
+AppService  --> BlobStorage : Azure SDK\nHTTPS
+AppService  --> KeyVault    : Managed Identity\nHTTPS
+AppService  --> EntraID     : JWKS / RS256\nHTTPS
+AppService  --> AzRM        : HTTPS
+AppService  --> AzMonitor   : SDK / HTTPS
+AppService  --> AzAdvisor   : HTTPS
+AppService  --> Translator  : HTTPS
+
+FunctionApp --> AppService  : GET /programaciones\nPOST /reportes/disparadores/{id}/ejecutar\nHTTPS (cada hora)
+
+ACR     ..> AppService  : pull image
+
+@enduml

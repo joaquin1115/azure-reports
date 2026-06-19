@@ -6,32 +6,85 @@ Sistema web para la automatización de reportes de consumo de Azure — G&S.
 
 ```
 azurereport/
-├── backend/              FastAPI (Python 3.12)
+├── backend/                        Backend FastAPI (Python 3.12)
 │   ├── app/
-│   │   ├── auth/         Validación JWT Azure Entra ID
-│   │   ├── db/           SQLAlchemy async + sesión
-│   │   ├── integrations/ Azure RM, Advisor, Blob Storage
-│   │   ├── models/       Modelos SQLAlchemy
-│   │   ├── routers/      Endpoints REST
-│   │   ├── schemas/      Pydantic schemas
-│   │   ├── services/     Lógica de negocio (análisis, PDF, reporte)
-│   │   └── main.py       Entry point FastAPI
-│   ├── alembic/          Migraciones de BD
-│   ├── tests/            Pruebas unitarias
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/             React 18 + TypeScript + Ant Design
+│   │   ├── auth/
+│   │   │   └── dependencies.py     Validación JWT Entra ID y control de roles
+│   │   ├── db/
+│   │   │   ├── catalog.py          Resolución de catálogos de BD
+│   │   │   └── session.py          Motor async SQLAlchemy y generador de sesión
+│   │   ├── integrations/
+│   │   │   ├── azure_advisor.py    Cliente Azure Advisor REST API
+│   │   │   ├── azure_rm.py         Cliente Azure Resource Manager y métricas
+│   │   │   ├── azure_translator.py Cliente Azure Translator
+│   │   │   └── blob_storage.py     Cliente Azure Blob Storage (upload + SAS URL)
+│   │   ├── models/
+│   │   │   └── models.py           Modelos SQLAlchemy de dominio
+│   │   ├── routers/
+│   │   │   ├── clientes.py         Endpoints CRUD de clientes y obtención de recursos
+│   │   │   ├── programaciones.py   Endpoints de programaciones automáticas
+│   │   │   ├── reportes.py         Endpoints de generación, SSE e historial
+│   │   │   └── usuarios.py         Endpoints CRUD de usuarios
+│   │   ├── schemas/
+│   │   │   └── schemas.py          Schemas Pydantic de entrada y salida
+│   │   ├── services/
+│   │   │   ├── analisis_service.py Estadísticos y detección de consumo elevado
+│   │   │   ├── grafico_service.py  Generación de gráficos con matplotlib
+│   │   │   ├── reporte_service.py  Orquestador de generación y canal SSE
+│   │   │   └── word_service.py     Generación de reportes DOCX
+│   │   ├── config.py               Configuración centralizada con pydantic-settings
+│   │   └── main.py                 Entry point FastAPI, CORS y registro de routers
+│   ├── alembic/
+│   │   ├── versions/               Archivos de migración generados por Alembic
+│   │   └── env.py                  Configuración async de Alembic
+│   ├── tests/                      Pruebas unitarias y de integración del backend
+│   ├── alembic.ini                 Configuración de Alembic
+│   ├── Dockerfile                  Imagen Docker para despliegue en App Service
+│   ├── requirements.txt            Dependencias Python del backend
+│   └── .env.example                Plantilla de variables de entorno
+│
+├── frontend/                       Frontend React 18 + TypeScript + Ant Design
 │   ├── src/
-│   │   ├── components/   AppLayout, NotificacionFlotante
-│   │   ├── pages/        GenerarReporte, Historial, Programar, Usuarios, Clientes
-│   │   ├── services/     apiClient (Axios+MSAL), sseService, authConfig
-│   │   ├── store/        Zustand (usuario, notificaciones)
-│   │   └── styles/       global.css (colores institucionales)
-│   └── package.json
-├── function_app/         Azure Function (timer trigger)
-│   ├── timer_trigger.py
-│   └── function.json
-└── .github/workflows/    CI/CD con GitHub Actions
+│   │   ├── components/
+│   │   │   ├── AppLayout.tsx       Layout raíz con sidebar y navegación por rol
+│   │   │   └── NotificacionFlotante.tsx  Alerta flotante integrada con SSE
+│   │   ├── pages/
+│   │   │   ├── LoginPage.tsx       Página de inicio de sesión con Microsoft (MSAL)
+│   │   │   ├── GenerarReportePage.tsx    Wizard de generación de reportes (CU-01)
+│   │   │   ├── ProgramarReportePage.tsx  Programación de reportes automáticos (CU-02)
+│   │   │   ├── HistorialPage.tsx   Historial y descarga de reportes (CU-03)
+│   │   │   ├── UsuariosPage.tsx    Gestión de usuarios con modal (CU-04)
+│   │   │   └── ClientesPage.tsx    Gestión de clientes y tenants (CU-05)
+│   │   ├── services/
+│   │   │   ├── authConfig.ts       Configuración MSAL (clientId, tenantId, scopes)
+│   │   │   ├── apiClient.ts        Instancia Axios con interceptor de token JWT
+│   │   │   └── sseService.ts       Suscripción a Server-Sent Events por reporte
+│   │   ├── store/
+│   │   │   └── store.ts            Stores Zustand (usuario autenticado, notificaciones)
+│   │   ├── styles/
+│   │   │   └── global.css          Variables CSS, colores institucionales y layout
+│   │   ├── staticwebapp.config.json Configuración de rutas para Azure Static Web Apps
+│   │   └── main.tsx                Entry point React con MSAL, Router y Ant Design
+│   ├── index.html                  Documento HTML raíz de Vite
+│   ├── package.json                Dependencias y scripts npm
+│   ├── vite.config.ts              Configuración de Vite con proxy al backend
+│   ├── tsconfig.json               Configuración TypeScript
+│   ├── tsconfig.node.json          Configuración TypeScript para Vite/Node
+│   └── .env.example                Plantilla de variables de entorno Vite
+│
+├── function_app/                   Azure Function (timer trigger)
+│   ├── timer_trigger.py            Lógica del scheduler: consulta programaciones e invoca backend
+│   └── function.json               Configuración del trigger (CRON: cada hora)
+│
+├── docs/
+│   ├── diagramas_arquitectura.puml Diagramas PlantUML de componentes y despliegue
+│   └── diagramas_secuencia.puml    Diagramas PlantUML de casos de uso
+│
+├── .github/
+│   └── workflows/
+│       └── deploy.yml              Pipeline CI/CD: test, build Docker, deploy Azure
+│
+└── README.md                       Instrucciones de configuración y despliegue
 ```
 
 ## Requisitos previos
